@@ -40,8 +40,8 @@ public:
    void logPotential();
    std::string getSpikeTimes();
 
-   void logPostSynapseWeight();
-   void logPreSynapseWeight();
+   void logPostSynapseWeight(std::string directory = "");
+   void logPreSynapseWeight(std::string directory = "");
 
    virtual void rest();
 

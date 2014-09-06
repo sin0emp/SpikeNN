@@ -143,8 +143,8 @@ void Layer::makeConnection(Layer* source, Layer* dest, float synapseProb, float 
             {
                Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], excitatoryWeight, excitatoryDelay);
                source->mSynapses.push_back(syn);
-               if (source != dest)
-                  dest->mSynapses.push_back(syn);
+               //if (source != dest)
+               //   dest->mSynapses.push_back(syn);
             }
             else
             {
@@ -179,8 +179,8 @@ void Layer::makeConnection(Layer* source, Layer* dest,
          {
             Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[k], excitatoryWeight, excitatoryDelay);
             source->mSynapses.push_back(syn);
-            if (source != dest)
-               dest->mSynapses.push_back(syn);
+            //if (source != dest)
+            //   dest->mSynapses.push_back(syn);
          }
          else
          {
@@ -203,6 +203,30 @@ void Layer::makeConnection(Layer* source, Layer* dest, ConnectionInfo (*pattern)
          {
             Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay, info.mType);
             source->mSynapses.push_back(syn);
+
+            //if (info.mType == INHIBITORY)
+            //{
+            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+1, info.mType);
+            //   source->mSynapses.push_back(syn);
+            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+2, info.mType);
+            //   source->mSynapses.push_back(syn);
+            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+3, info.mType);
+            //   source->mSynapses.push_back(syn);
+            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+4, info.mType);
+            //   source->mSynapses.push_back(syn);
+            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+5, info.mType);
+            //   source->mSynapses.push_back(syn);
+            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+6, info.mType);
+            //   source->mSynapses.push_back(syn);
+            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+7, info.mType);
+            //   source->mSynapses.push_back(syn);
+            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+8, info.mType);
+            //   source->mSynapses.push_back(syn);
+            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+9, info.mType);
+            //   source->mSynapses.push_back(syn);
+            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+10, info.mType);
+            //   source->mSynapses.push_back(syn);
+            //}
 
             //is it right??
             //if (source != dest)
@@ -251,16 +275,15 @@ void Layer::logPotential(bool (*pattern)(int))
    }
 }
 
-void Layer::logPostSynapseWeight(int neuron)
+void Layer::logPostSynapseWeight(int neuron, std::string directory)
 {
-   mNeurons[neuron]->logPostSynapseWeight();
+   mNeurons[neuron]->logPostSynapseWeight(directory);
 }
 
-void Layer::logPreSynapseWeight(int neuron)
+void Layer::logPreSynapseWeight(int neuron, std::string directory)
 {
-   mNeurons[neuron]->logPreSynapseWeight();
+   mNeurons[neuron]->logPreSynapseWeight(directory);
 }
-
 
 std::vector<int> Layer::getWeightFrequencies()
 {

@@ -42,8 +42,8 @@ public:
    void logWeight(bool (*pattern)(int, int, int, int) = 0);
    void logPotential(bool (*pattern)(int) = 0);
    void logActivity() { mLogActivityFlag = true; }
-   void logPostSynapseWeight(int neuron);
-   void logPreSynapseWeight(int neuron);
+   void logPostSynapseWeight(int neuron, std::string directory = "");
+   void logPreSynapseWeight(int neuron, std::string directory = "");
 
    int  getTime() { return mTime; }
    bool getContainerFlag() { return mContainerFlag; }
@@ -52,8 +52,10 @@ public:
    void setContainerFlag(bool containerFlag) { mContainerFlag = containerFlag; }
    void recordSpike(int NeuronID);
    
-   void setSTDPParameters(float CMultiplier, float AP, float AN, int STDPTimeStep = 100, float TaoP = 20, float TaoN = 20)
-   { mCMultiplier = CMultiplier; mAP = AP; mAN = AN; mSTDPTimeStep = STDPTimeStep; mTaoP = TaoP; mTaoN = TaoN; }
+   void setSTDPParameters(float CMultiplier, float AP, float AN, float decayMultiplier = 1,
+      int STDPTimeStep = 100, float TaoP = 20, float TaoN = 20)
+   { mCMultiplier = CMultiplier; mAP = AP; mAN = AN; mDecayWeightMultiplier = decayMultiplier,
+     mSTDPTimeStep = STDPTimeStep; mTaoP = TaoP; mTaoN = TaoN; }
 
    void setBoundingParameters(float maxWeight, float minRandWeight, 
       float maxRandWeight, int minRandDelay, int maxRandDelay);
@@ -72,6 +74,7 @@ public:
    float getTaoP() { return mTaoP; }
    float getTaoN() { return mTaoN; }
    float getCMultiplier() { return mCMultiplier; }
+   float getDecayMultiplier() { return mDecayWeightMultiplier; }
    int   getNextSynapseID();
    float getDAConcentraion();
    void  restNeurons();
@@ -108,12 +111,14 @@ public:
    Logger                        mLogger;
 
    //STDP settings
-   float mAP;    //max of positive part of STDP function
-   float mAN;    //min of negative part of STDP function
-   float mTaoP;  //determines convergence pace of positive part of STDP function
-   float mTaoN;  //determines convergence pace of negative part of STDP function
-   float mCMultiplier;  //a constant which multiplies variable mC of every synapse, every mSTDPTimeStep milisecs
+   float mAP;                    //max of positive part of STDP function
+   float mAN;                    //min of negative part of STDP function
+   float mTaoP;                  //determines convergence pace of positive part of STDP function
+   float mTaoN;                  //determines convergence pace of negative part of STDP function
+   float mCMultiplier;           //a constant which multiplies variable mC of every synapse, every mSTDPTimeStep milisecs
+   float mDecayWeightMultiplier; //a constant which multiplies weight of every synapse, every mSTDPTimeStep milisecs
    int   mSTDPTimeStep;
+   
 
    //bounding parameters
    float mMaxWeight;

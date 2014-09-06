@@ -70,8 +70,8 @@ public:
    void runNetwork(int maxTime);
    void logLayerActivity(int layer);
    void logSettings();
-   void logPostSynapseWeights(int layer, int neuron);
-   void logPreSynapseWeights(int layer, int neuron);
+   void logPostSynapseWeights(int layer, int neuron, std::string directory = "");
+   void logPreSynapseWeights(int layer, int neuron, std::string directory = "");
    void logSynapseWeight(bool (*pattern)(int, int, int, int));
    void logSynapseWeight(bool (*pattern)(int));
    void logPotential(int layer, bool (*pattern)(int) = 0) { mLayers[layer]->logPotential(pattern); }
@@ -79,10 +79,12 @@ public:
    void setInputPattern(int layerIndex, InputPatternMode mode, std::vector<InputInformation> (*pattern)(int) = 0)
    {mLayers[layerIndex]->setInputPattern(mode, pattern);}
 
-   void setSTDPParameters(int layerIndex, float CMultiplier, float AP, float AN, int STDPTimeStep = 100, float TaoP = 20, float TaoN = 20)
-   { mLayers[layerIndex]->setSTDPParameters(CMultiplier, AP, AN, STDPTimeStep, TaoP, TaoN); }
+   void setSTDPParameters(int layerIndex, float CMultiplier, float AP, float AN, float decayMultiplier = 1,
+      int STDPTimeStep = 100, float TaoP = 20, float TaoN = 20)
+   { mLayers[layerIndex]->setSTDPParameters(CMultiplier, AP, AN, decayMultiplier, STDPTimeStep, TaoP, TaoN); }
 
-   void setSTDPParameters(float CMultiplier, float AP, float AN, int STDPTimeStep = 100, float TaoP = 20, float TaoN = 20)
+   void setSTDPParameters(float CMultiplier, float AP, float AN, float decayMultiplier = 1, 
+      int STDPTimeStep = 100, float TaoP = 20, float TaoN = 20)
    {
       for (size_t i = 0; i < mLayers.size(); ++i)
          mLayers[i]->setSTDPParameters(CMultiplier, AP, AN, STDPTimeStep, TaoP, TaoN);
@@ -94,6 +96,7 @@ public:
       mSTDPTimeStep = STDPTimeStep;
       mTaoP = TaoP;
       mTaoN = TaoN;
+      mDecayWeightMultiplier = decayMultiplier;
    }
 
 
@@ -144,6 +147,7 @@ protected:
    float mTaoP;  //determines convergence pace of positive part of STDP function
    float mTaoN;  //determines convergence pace of negative part of STDP function
    float mCMultiplier;  //a constant which multiplies variable mC of every synapse, every mSTDPTimeStep milisecs
+   float mDecayWeightMultiplier; //a constant which multiplies weight of every synapse, every mSTDPTimeStep milisecs
    int   mSTDPTimeStep;
 
    //default bounding parameters

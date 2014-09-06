@@ -56,8 +56,10 @@ public:
    void setInputImagesDirectory(std::string dirName);
 
    //TODO: void logSettings(); 
-   void logPostSynapseWeights(int layer, Point2D neuron) { Network::logPostSynapseWeights(layer, to1D(layer, neuron)); }
-   void logPreSynapseWeights(int layer, Point2D neuron) { Network::logPreSynapseWeights(layer, to1D(layer, neuron)); }
+   void logPostSynapseWeights(int layer, Point2D neuron, std::string directory = "")
+   { Network::logPostSynapseWeights(layer, to1D(layer, neuron), directory); }
+   void logPreSynapseWeights(int layer, Point2D neuron, std::string directory = "") 
+   { Network::logPreSynapseWeights(layer, to1D(layer, neuron), directory); }
    //TODO: void logSynapseWeight(bool (*pattern)(int, int, int, int));
    //TODO: void logSynapseWeight(bool (*pattern)(int));
 

@@ -23,7 +23,6 @@ Synapse::Synapse(Layer* layer, Neuron* pre, Neuron* post, ChannelType type, floa
    mType = type;
    mID = layer->getNextSynapseID();
    mLogger.set(mLayer->getAddress(pre->getLayerID(), pre->getID(), post->getLayerID(), post->getID()));
-   //mLogger.set(Logger::toString((float)mID))
    mLogWeightFlag = false;
    mLastPostSpikeTime = mLastPreSpikeTime = -1000;
    mC = 0;
@@ -59,11 +58,14 @@ void Synapse::updateWeight()
    if (mWeight > mLayer->getMaxWeight()) mWeight = mLayer->getMaxWeight();
    if (mWeight < 0) mWeight = 0;
    mC *= mLayer->getCMultiplier();
+   mWeight *= mLayer->getDecayMultiplier();
 }
 
-void Synapse::addWeightLog()
+void Synapse::addWeightLog(std::string directory)
 {
    mLogWeightFlag = true;
+   mLogger.set(mLayer->getAddress(mPreNeuron->getLayerID(), mPreNeuron->getID(), mPostNeuron->getLayerID(),
+      mPostNeuron->getID()), directory);
 }
 
 void Synapse::logWeight(bool (*pattern)(int))

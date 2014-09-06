@@ -31,7 +31,7 @@ public:
    void addSpike();
    bool isFrom(Neuron* n) {return n == mPreNeuron;}
    bool isConnectedTo(Neuron* n) {return n == mPostNeuron;}
-   void addWeightLog();
+   void addWeightLog(std::string directory = "");
    void logWeight(bool (*pattern)(int) = 0);
    void logWeight(bool (*pattern)(int, int, int, int) = 0);
 

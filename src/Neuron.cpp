@@ -116,16 +116,16 @@ void Neuron::logPotential()
    mLogPotentialFlag = true;
 }
 
-void Neuron::logPostSynapseWeight()
+void Neuron::logPostSynapseWeight(std::string directory)
 {
    for(size_t i = 0; i < mPostSynapses.size(); ++i)
-      mPostSynapses[i]->addWeightLog();
+      mPostSynapses[i]->addWeightLog(directory);
 }
 
-void Neuron::logPreSynapseWeight()
+void Neuron::logPreSynapseWeight(std::string directory)
 {
    for(size_t i = 0; i < mPreSynapses.size(); ++i)
-      mPreSynapses[i]->addWeightLog();
+      mPreSynapses[i]->addWeightLog(directory);
 }
 
 int Neuron::getLayerID()

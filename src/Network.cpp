@@ -24,6 +24,7 @@ Network::Network()
    mCMultiplier = 0.9f;
    mAP = 0.1f;
    mAN = 0.12f;
+   mDecayWeightMultiplier = 1;
    mTaoP = 20.0f;
    mTaoN = 20.0f;
    mCMultiplier = 0.9f;
@@ -44,7 +45,7 @@ int Network::addLayer(bool shouldLearn, bool isContainer)
    mLayers.push_back(lay);
    int index = mLayers.size() - 1;
    mLayers[index]->setBoundingParameters(mMaxWeight, mMinRandWeight, mMaxRandWeight, mMinRandDelay, mMaxRandDelay);
-   mLayers[index]->setSTDPParameters(mCMultiplier, mAP, mAN, mSTDPTimeStep, mTaoP, mTaoN);
+   mLayers[index]->setSTDPParameters(mCMultiplier, mAP, mAN, mDecayWeightMultiplier, mSTDPTimeStep, mTaoP, mTaoN);
    return index;
 }
 
@@ -56,6 +57,7 @@ void Network::addDAModule()
 
 void Network::runNetwork(int maxTime)
 {
+   _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
    clock_t start = clock();
 
    std::cout << "Network started." << std::endl;
@@ -95,14 +97,14 @@ void Network::logSettings()
    mLogSettingsFlag = true;
 }
 
-void Network::logPostSynapseWeights(int layer, int neuron)
+void Network::logPostSynapseWeights(int layer, int neuron, std::string directory)
 {
-   mLayers[layer]->logPostSynapseWeight(neuron);
+   mLayers[layer]->logPostSynapseWeight(neuron, directory);
 }
 
-void Network::logPreSynapseWeights(int layer, int neuron)
+void Network::logPreSynapseWeights(int layer, int neuron, std::string directory)
 {
-   mLayers[layer]->logPreSynapseWeight(neuron);
+   mLayers[layer]->logPreSynapseWeight(neuron, directory);
 }
 
 void Network::logSynapseWeight(bool (*pattern)(int, int, int, int))

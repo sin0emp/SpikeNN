@@ -1,16 +1,19 @@
 #include "Logger.h"
 #include <sstream>
 
-void Logger::set(std::string filename)
+void Logger::set(std::string filename, std::string directory)
 {
-   mFileName = filename;
-
    if (filename.find(".log") == std::string::npos)
-      mFileName += ".log";
+      filename += ".log";
+
+   if (directory != "")
+      if (directory[directory.size()-1] != '/')
+            directory += '/';
+
+   mFileName = filename;
+   mDirectory = directory;
 
    if(mStream.is_open()) mStream.close();
-
-   //mStream.open(mFileName.c_str());
 }
 
 std::string Logger::toString(float input)
