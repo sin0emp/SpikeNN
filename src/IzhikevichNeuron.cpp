@@ -45,6 +45,7 @@ float IzhikevichNeuron::updatePotential()
    mV += 0.5f * (mV * (0.04f * mV + 5) + 140 - mU + mInputCurrent);
 
    mU += mA * (mB * mV - mU);
+
    return mV;
 }
 

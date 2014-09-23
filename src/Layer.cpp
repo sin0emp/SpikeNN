@@ -105,8 +105,12 @@ void Layer::update()
    }
 
    if (!mContainerFlag)
+   {
+      //call neurons to update in a random order
+      std::vector<std::size_t> order = SHUFFLE(mNeurons.size());
       for (size_t i = 0; i < mNeurons.size(); ++i)
-         mNeurons[i]->update();
+         mNeurons[order[i]]->update();
+   }
 
    if (mLearningFlag)
       if (mTime % mSTDPTimeStep == 0)
@@ -203,30 +207,6 @@ void Layer::makeConnection(Layer* source, Layer* dest, ConnectionInfo (*pattern)
          {
             Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay, info.mType);
             source->mSynapses.push_back(syn);
-
-            //if (info.mType == INHIBITORY)
-            //{
-            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+1, info.mType);
-            //   source->mSynapses.push_back(syn);
-            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+2, info.mType);
-            //   source->mSynapses.push_back(syn);
-            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+3, info.mType);
-            //   source->mSynapses.push_back(syn);
-            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+4, info.mType);
-            //   source->mSynapses.push_back(syn);
-            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+5, info.mType);
-            //   source->mSynapses.push_back(syn);
-            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+6, info.mType);
-            //   source->mSynapses.push_back(syn);
-            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+7, info.mType);
-            //   source->mSynapses.push_back(syn);
-            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+8, info.mType);
-            //   source->mSynapses.push_back(syn);
-            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+9, info.mType);
-            //   source->mSynapses.push_back(syn);
-            //   syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay+10, info.mType);
-            //   source->mSynapses.push_back(syn);
-            //}
 
             //is it right??
             //if (source != dest)

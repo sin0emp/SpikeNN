@@ -31,7 +31,14 @@ Synapse::Synapse(Layer* layer, Neuron* pre, Neuron* post, ChannelType type, floa
 void Synapse::addSpike()
 {
    mLastPreSpikeTime = mLayer->getTime();
-   mPostNeuron->addInputCurrent(mLastPreSpikeTime + mDelay, (mType == EXCITATORY) ? mWeight : -mWeight);
+
+   if (mType == EXCITATORY)
+      mPostNeuron->addInputCurrent(mLastPreSpikeTime + mDelay, mWeight);
+   else if (mType == INHIBITORY)
+      mPostNeuron->addInputCurrent(mLastPreSpikeTime + mDelay, -mWeight);
+   else if (mType == RESET)
+      mPostNeuron->rest(); //should delay be takan into account?
+
    if (mLayer->getLearningFlag() && mType == EXCITATORY) stepIncreaseSTDP();
 }
 

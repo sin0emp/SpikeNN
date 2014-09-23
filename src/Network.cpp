@@ -68,9 +68,15 @@ void Network::runNetwork(int maxTime)
          std::cout << "mTime = " << mTime << std::endl;
       }
 
-      //signal to layers to update components
+      //call layers to update in a random order
+      std::vector<std::size_t> order = SHUFFLE(mLayers.size());
       for (std::size_t i = 0; i < mLayers.size(); i++)
-         mLayers[i]->update();
+         mLayers[order[i]]->update();
+
+      //or hierarichally??
+      //for (std::size_t i = 0; i < mLayers.size(); i++)
+      //   mLayers[i]->update();
+
 
       if (mDAHandler)
          mDAHandler->update();

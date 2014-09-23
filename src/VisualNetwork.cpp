@@ -30,7 +30,7 @@ ConnectionInfo VisualNetwork::defaultConnectingPattern(int sourceIndex, int dest
 
    case SAME_INDEX_INHIBIT_CONNECTION:
       if (source.mWidth == dest.mWidth && source.mHeight == dest.mHeight)
-         return ConnectionInfo(true, INHIBITORY, 20, 0); //TODO: is 20 enough??
+         return ConnectionInfo(true, RESET, 20, 0); //how can this be done with inhibitory?
       else
          return ConnectionInfo(false);
 
@@ -48,13 +48,15 @@ ConnectionInfo VisualNetwork::defaultConnectingPattern(int sourceIndex, int dest
 
 std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
 {
-   if (time % 50 == 1)
+   if (time % 10 == 1)
    {
-      for (size_t i = 0; i < mLayers.size(); ++i)
-         mLayers[i]->restNeurons();
+      //for (size_t i = 0; i < mLayers.size(); ++i)
+      //   mLayers[i]->restNeurons();
 
-      ++mCurrentImageIndex;
-      if (mCurrentImageIndex >= mImageFileNames.size()) mCurrentImageIndex = 0;
+      //++mCurrentImageIndex;
+      if (time % 100 == 1)
+         mCurrentImageIndex = rand() % mImageFileNames.size();
+      //if (mCurrentImageIndex >= mImageFileNames.size()) mCurrentImageIndex = 0;
       mInputInfos.clear();
       BMP image;
       image.ReadFromFile((mImagesFolderName + mImageFileNames[mCurrentImageIndex]).c_str());
@@ -64,9 +66,11 @@ std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
          {
             RGBApixel pix = image.GetPixel(i, j);
             //TODO: should we pass the image through grayscale and DOG filter here??
-            if (pix.Red < 50) //a threshold for color strength which leads to an spikes
+            //float gray = 256 - (0.21*pix.Red + 0.72*pix.Green + 0.07*pix.Blue);
+            float gray = 0.21*pix.Red + 0.72*pix.Green + 0.07*pix.Blue;
+            if (gray < 50) //a threshold for color strength which leads to an spikes
             {
-               PixelInputInformation info(Point2D(i,j), time + (int)(20*((float)pix.Red/256)));
+               PixelInputInformation info(Point2D(i,j), time + (int)(20*(gray/256)));
                mInputInfos.push_back(info); //distribute spikes with respect to their color strength over 100 milisecond
                //insertion sort!
                for (size_t i = mInputInfos.size()-1; i > 0; --i)
