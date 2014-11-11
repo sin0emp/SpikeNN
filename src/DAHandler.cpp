@@ -1,6 +1,9 @@
 #include "DAHandler.h"
 #include "Network.h"
 #include <iostream>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/serialization/vector.hpp>
 
 DAHandler::DAHandler()
 {
@@ -75,3 +78,14 @@ void DAHandler::checkForReward()
          break;
    }
 }
+
+template <class Archive>
+void DAHandler::serialize(Archive &ar, const unsigned int version)
+{
+   ar & mD & mDMultiplier
+      & mSynapse & mNetwork
+      & AcceptableDuration;
+}
+
+template void DAHandler::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);
+template void DAHandler::serialize<boost::archive::text_iarchive>(boost::archive::text_iarchive &ar, const unsigned int version);

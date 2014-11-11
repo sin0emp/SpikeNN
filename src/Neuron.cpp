@@ -3,18 +3,33 @@
 #include "Layer.h"
 #include "Synapse.h"
 #include <string>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/serialization/vector.hpp>
+
+BOOST_SERIALIZATION_ASSUME_ABSTRACT(Neuron);
 
 Neuron::Neuron(Layer* layer, int ID, ChannelType type)
 {
    mLayer = layer;
    mType = type;
    mID = ID;
+   initialize();
+   wakeup();
+   //mLogger.set(mLayer->getAddress(mLayer->getID(), mID));
+}
+
+void Neuron::wakeup()
+{
+   mTime = mLayer->getPointerToTime();
+}
+
+void Neuron::initialize()
+{
    mInputCurrent = 0;
    mPreSynapsesNum = mPostSynapsesNum = 0;
    mInputCurrentNum = 0;
    mLogPotentialFlag = false;
-
-   mLogger.set(mLayer->getAddress(mLayer->getID(), mID));
 }
 
 Neuron::~Neuron()
@@ -25,9 +40,6 @@ Neuron::~Neuron()
 
 void Neuron::propagateSpike()
 {
-   if (mLayer->getTime() % 1000 > 500)
-      int a = 1;
-
    mLayer->recordSpike(mID);
    
    for (std::size_t i = 0; i < mPostSynapsesNum; ++i)
@@ -56,7 +68,7 @@ Synapse* Neuron::makeConnection(Neuron* source, Neuron* dest, float weight, int 
 {
    //TODO: throw error if the two neurons dosn't belong to a same network
 
-   Synapse* syn = new Synapse(source->mLayer, source, dest, (type == DEPENDENT)? source->mType : type,  weight, delay);
+   Synapse* syn = new Synapse(dest->mLayer, source, dest, (type == DEPENDENT)? source->mType : type,  weight, delay);
    source->mPostSynapses.push_back(syn);
    ++source->mPostSynapsesNum;
    dest->mPreSynapses.push_back(syn);
@@ -66,13 +78,11 @@ Synapse* Neuron::makeConnection(Neuron* source, Neuron* dest, float weight, int 
 
 void Neuron::update()
 {
-   int t = mLayer->getTime();
-
    while (mInputCurrentNum > 0)
    {
       //because of the zero delays, when network arrives here the firing time
       //can be less than the actual network time, hence <= has been put here
-      if (mInputCurrentQueue[0].fireTime <= t)
+      if (mInputCurrentQueue[0].fireTime <= *mTime)
       {
          mInputCurrent += mInputCurrentQueue[0].currentToAdd;
          mInputCurrentQueue.erase(mInputCurrentQueue.begin());
@@ -87,7 +97,7 @@ void Neuron::update()
    mInputCurrent = 0; //reset input current for the next cycle
 
    if (mLogPotentialFlag)
-      mLogger.writeLine(Logger::toString(mLayer->getTime()) + " " + Logger::toString(potential));
+      mLogger.writeLine(Logger::toString((float)*mTime) + " " + Logger::toString(potential));
 }
 
 bool Neuron::isConnectedTo(Neuron* n)
@@ -133,8 +143,29 @@ int Neuron::getLayerID()
    return mLayer->getID(); 
 }
 
+std::vector<float> Neuron::getResponseFromLayer(int sourceLayer)
+{
+   std::vector<float> re;
+   for (size_t i = 0; i < mPreSynapsesNum; ++i)
+      if (mPreSynapses[i]->isFromLayer(sourceLayer))
+         re.push_back(mPreSynapses[i]->getWeight());
+
+   return re;
+}
+
 void Neuron::rest()
 {
    mInputCurrent = 0;
    mSpikeTimes.clear();
 }
+
+template <class Archive>
+void Neuron::serialize(Archive &ar, const unsigned int version)
+{
+   ar & mID & mType & mLayer
+      & mPostSynapses & mPostSynapsesNum
+      & mPreSynapses & mPreSynapsesNum;
+}
+
+template void Neuron::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);
+template void Neuron::serialize<boost::archive::text_iarchive>(boost::archive::text_iarchive &ar, const unsigned int version);

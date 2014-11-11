@@ -6,7 +6,7 @@ if(WIN32)
    set(Boost_USE_STATIC_LIBS ON)
 endif(WIN32)
 
-find_package(Boost COMPONENTS system filesystem REQUIRED)
+find_package(Boost COMPONENTS system filesystem serialization REQUIRED)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include
                     ${Boost_INCLUDE_DIR})
@@ -18,6 +18,7 @@ add_library(SpikeNN SHARED src/Synapse.cpp
                            src/Logger.cpp
                            src/Layer.cpp
                            src/IzhikevichNeuron.cpp
+                           src/LIFNeuron.cpp
                            src/GlobalVars.cpp
                            src/EasyBMP.cpp
                            src/DAHandler.cpp)

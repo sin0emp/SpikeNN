@@ -1,8 +1,14 @@
 #include "VisualNetwork.h"
 #include "EasyBMP.h"
 #include <boost/filesystem.hpp>
-
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/serialization/export.hpp>
+#include <boost/serialization/vector.hpp>
+#include <boost/serialization/string.hpp>
 #include <iostream>
+
+BOOST_CLASS_EXPORT(VisualNetwork);
 
 VisualNetwork::VisualNetwork()
 {
@@ -28,9 +34,9 @@ ConnectionInfo VisualNetwork::defaultConnectingPattern(int sourceIndex, int dest
 
       break;
 
-   case SAME_INDEX_INHIBIT_CONNECTION:
+   case LATERAL_CONNECTION:
       if (source.mWidth == dest.mWidth && source.mHeight == dest.mHeight)
-         return ConnectionInfo(true, RESET, 20, 0); //how can this be done with inhibitory?
+         return ConnectionInfo(true, INHIBITORY, mLateralWeight, mLateralDelay);
       else
          return ConnectionInfo(false);
 
@@ -48,14 +54,16 @@ ConnectionInfo VisualNetwork::defaultConnectingPattern(int sourceIndex, int dest
 
 std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
 {
-   if (time % 10 == 1)
+   if (time % 100 == 1)
    {
-      //for (size_t i = 0; i < mLayers.size(); ++i)
-      //   mLayers[i]->restNeurons();
+      for (size_t i = 0; i < mLayers.size(); ++i)
+         mLayers[i]->restNeurons();
 
+      mCurrentImageIndex = (int)(((float)rand() / RAND_MAX) * mImageFileNames.size());
+      if (mCurrentImageIndex == mImageFileNames.size()) mCurrentImageIndex--;
+
+      mLogger.writeLine(Logger::toString((float)time) + " " + mImageFileNames[mCurrentImageIndex]);
       //++mCurrentImageIndex;
-      if (time % 100 == 1)
-         mCurrentImageIndex = rand() % mImageFileNames.size();
       //if (mCurrentImageIndex >= mImageFileNames.size()) mCurrentImageIndex = 0;
       mInputInfos.clear();
       BMP image;
@@ -66,23 +74,43 @@ std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
          {
             RGBApixel pix = image.GetPixel(i, j);
             //TODO: should we pass the image through grayscale and DOG filter here??
-            //float gray = 256 - (0.21*pix.Red + 0.72*pix.Green + 0.07*pix.Blue);
-            float gray = 0.21*pix.Red + 0.72*pix.Green + 0.07*pix.Blue;
-            if (gray < 50) //a threshold for color strength which leads to an spikes
+            float gray = (float)(0.21*pix.Red + 0.72*pix.Green + 0.07*pix.Blue);
+            if (gray < 200) //a threshold for color strength which leads to an spikes
             {
-               PixelInputInformation info(Point2D(i,j), time + (int)(20*(gray/256)));
-               mInputInfos.push_back(info); //distribute spikes with respect to their color strength over 100 milisecond
-               //insertion sort!
-               for (size_t i = mInputInfos.size()-1; i > 0; --i)
+               //PixelInputInformation info(Point2D(i,j), time + (int)(20*(gray/256)));
+               //mInputInfos.push_back(info); //distribute spikes with respect to their color strength over 100 milisecond
+               ////insertion sort!
+               //for (size_t i = mInputInfos.size()-1; i > 0; --i)
+               //{
+               //   if (mInputInfos[i].mTime < mInputInfos[i-1].mTime)
+               //   {
+               //      int hold = mInputInfos[i].mTime;
+               //      mInputInfos[i].mTime = mInputInfos[i-1].mTime;
+               //      mInputInfos[i-1].mTime=hold;
+               //   }
+               //   else
+               //      break;
+               //}
+
+               int timeToAdd = time + (int)(20*(gray/256));
+               while (timeToAdd < time + 100)
                {
-                  if (mInputInfos[i].mTime < mInputInfos[i-1].mTime)
+                  PixelInputInformation info(Point2D(i,j), timeToAdd);
+                  mInputInfos.push_back(info);
+
+                  for (size_t k = mInputInfos.size()-1; k > 0; --k)
                   {
-                     int hold = mInputInfos[i].mTime;
-                     mInputInfos[i].mTime = mInputInfos[i-1].mTime;
-                     mInputInfos[i-1].mTime=hold;
+                     if (mInputInfos[k].mTime < mInputInfos[k-1].mTime)
+                     {
+                        PixelInputInformation hold = mInputInfos[k];
+                        mInputInfos[k] = mInputInfos[k-1];
+                        mInputInfos[k-1]=hold;
+                     }
+                     else
+                        break;
                   }
-                  else
-                     break;
+
+                  timeToAdd += (int)(20*(gray/256))+20;
                }
             }
          }
@@ -138,17 +166,90 @@ std::string VisualNetwork::getAddress(int slayer, int sneuron, int dlayer, int d
 {
    std::string s;
    if (slayer != -1)
-      s += "l" + Logger::toString(slayer);
+      s += "l" + Logger::toString((float)slayer);
    if (sneuron != -1)
    {
       Point2D n = to2D(slayer, sneuron);
-      s += "n" + Logger::toString(n.mWidth) + "," + Logger::toString(n.mHeight);
+      s += "n" + Logger::toString((float)n.mHeight) + "," + Logger::toString((float)n.mWidth);
    }
    if (dlayer != -1 && dlayer != -1)
    {
       Point2D n = to2D(dlayer, dneuron);
-      s += "-TO-l" + Logger::toString(dlayer) + "n" + Logger::toString(n.mWidth) + "," + Logger::toString(n.mHeight);
+      s += "-TO-l" + Logger::toString((float)dlayer) + "n" + Logger::toString((float)n.mHeight) + "," + Logger::toString((float)n.mWidth);
    }
 
    return s;
 }
+
+std::vector<float> VisualNetwork::getResponseFromSuperLayer(int sourceSuperLayer, int destLayer, Point2D destNeuron)
+{
+   std::vector<float> re;
+   for (size_t i = 0; i < mSuperLayersContent[sourceSuperLayer].size(); ++i)
+   {
+      if (re.size() == 0)
+         re = getResponseFromLayer(mSuperLayersContent[sourceSuperLayer][i], destLayer, destNeuron);
+      else
+      {
+         std::vector<float> res;
+         res = getResponseFromLayer(mSuperLayersContent[sourceSuperLayer][i], destLayer, destNeuron);
+         for (size_t j = 0; j < res.size(); ++j)
+            if (res[j] > re[j]) re[j] = res[j];
+      }
+   }
+
+   return re;
+}
+
+template <class Archive>
+void VisualNetwork::serialize(Archive &ar, const unsigned int version)
+{
+   ar & boost::serialization::base_object<Network>(*this);
+   ar & mLayersSizeInfo & mInputLayerIndex
+      & mImagesFolderName & mImageFileNames
+      & mSuperLayersContent & mConnectionPatternMode;
+}
+
+template void VisualNetwork::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);
+template void VisualNetwork::serialize<boost::archive::text_iarchive>(boost::archive::text_iarchive &ar, const unsigned int version);
+
+void VisualNetwork::saveNetwork(VisualNetwork& visNet, std::string path)
+{
+    std::ofstream file(path.c_str(), std::ios::binary);
+    boost::archive::text_oarchive oa(file);
+    oa.register_type<VisualNetwork>();
+    oa & visNet;
+    file.close();
+}
+
+VisualNetwork* VisualNetwork::loadNetwork(std::string path)
+{
+    std::ifstream file(path.c_str(), std::ios::binary);
+    boost::archive::text_iarchive ia(file);
+    ia.register_type<VisualNetwork>();
+    VisualNetwork* net = new VisualNetwork();
+    ia & *net;
+
+    for (size_t i = 0; i <= net->mLastLayerID; ++i)
+       net->mLayers[i]->wakeup();
+
+    file.close();
+    return net;
+}
+
+template <class Archive>
+void Point2D::serialize(Archive &ar, const unsigned int version)
+{
+   ar & mWidth & mHeight;
+}
+
+template void Point2D::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);
+template void Point2D::serialize<boost::archive::text_iarchive>(boost::archive::text_iarchive &ar, const unsigned int version);
+
+template <class Archive>
+void PixelInputInformation::serialize(Archive &ar, const unsigned int version)
+{
+   ar & mPixel & mTime;
+}
+
+template void PixelInputInformation::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);
+template void PixelInputInformation::serialize<boost::archive::text_iarchive>(boost::archive::text_iarchive &ar, const unsigned int version);

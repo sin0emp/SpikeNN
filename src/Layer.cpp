@@ -2,34 +2,60 @@
 #include "Network.h"
 #include <stdlib.h>
 #include <iostream>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/serialization/vector.hpp>
 
 #define RANDOMINPUT ((float)rand()/RAND_MAX)*(mMaxInputCurrent - mMinInputCurrent) + mMinInputCurrent
 
 Layer::Layer(Network* net, int ID, bool shouldLearn, bool isContainer)
 {
    mNetwork = net;
+   setExcitatoryLearningFlag(shouldLearn); setInhibitoryLearningFlag(shouldLearn);
+   setContainerFlag(isContainer);
+   mID = ID;
+   initialize();
+   wakeup();
+}
+
+void Layer::initialize()
+{
+   mTime = 0;
    mInputPatternMode = NO_INPUT;
    mInputPattern = 0;
-   mMinInputCurrent = 0;
-   mMaxInputCurrent = 20;
-   mMaxWeight = 10;
-   mMaxRandWeight = 10;
-   mMinRandWeight = 0;
-   mMaxRandDelay = 20;
-   mMinRandDelay = 0;
-   mSTDPTimeStep = 1000;
-   mCMultiplier = 0.9f;
+   mExLearningFlag = mInLearningFlag = true;
+   mLockExLearningFlag = mLockInLearningFlag = false;
+   mContainerFlag = false;
+   mLogActivityFlag = false;
    mAP = 0.1f;
    mAN = 0.12f;
    mTaoP = 20.0f;
    mTaoN = 20.0f;
    mCMultiplier = 0.9f;
-   mLearningFlag = true;
-   mContainerFlag = false;
-   mLogActivityFlag = false;
-   mContainerFlag = isContainer;
-   mLearningFlag = shouldLearn;
-   mID = ID;
+   mDecayWeightMultiplier = 1.0f;
+   mSTDPTimeStep = 100;
+   mExMaxWeight = 10;
+   mExMaxRandWeight = 10;
+   mExMinRandWeight = 0;
+   mInMaxWeight = 20;
+   mInMaxRandWeight = 20;
+   mInMinRandWeight = 0;
+   mMaxRandDelay = 20;
+   mMinRandDelay = 0;
+   mMinInputCurrent = 0;
+   mMaxInputCurrent = 20;
+}
+
+void Layer::wakeup()
+{
+   mTime = mNetwork->getPointerToTime();
+   updateLearningFlags();
+
+   for (size_t i = 0; i < mNeurons.size(); ++i)
+      mNeurons[i]->wakeup();
+
+   for (size_t i = 0; i < mSynapses.size(); ++i)
+      mSynapses[i]->wakeup();
 }
 
 Layer::~Layer()
@@ -40,8 +66,6 @@ Layer::~Layer()
 
 void Layer::update()
 {
-   mTime = mNetwork->getTime();
-
    size_t k;
    switch (mInputPatternMode)
    {
@@ -50,29 +74,29 @@ void Layer::update()
 
    case ALL_RANDOM_CURRENT:
       for (k = 0; k < mNeurons.size(); k++)
-         mNeurons[k]->addInputCurrent(mTime, RANDOMINPUT);
+         mNeurons[k]->addInputCurrent(*mTime, RANDOMINPUT);
       break;
 
    case ALL_MAX_CURRENT:
       for (k = 0; k < mNeurons.size(); k++)
-         mNeurons[k]->addInputCurrent(mTime, RANDOMINPUT);
+         mNeurons[k]->addInputCurrent(*mTime, RANDOMINPUT);
       break;
 
    case ONE_RANDOM_CURRENT:
       k = rand() % mNeurons.size();
-      mNeurons[k]->addInputCurrent(mTime, RANDOMINPUT);
+      mNeurons[k]->addInputCurrent(*mTime, RANDOMINPUT);
       break;
 
    case ONE_MAX_CURRENT:
       k = rand() % mNeurons.size();
-      mNeurons[k]->addInputCurrent(mTime, mMaxInputCurrent);
+      mNeurons[k]->addInputCurrent(*mTime, mMaxInputCurrent);
       break;
 
    case MANUAL_INPUT:
       {
       std::vector<InputInformation> infos = (mInputPattern) ? 
-         (*mInputPattern)(mTime) :
-         mNetwork->defaultInputPattern(mTime);
+         (*mInputPattern)(*mTime) :
+         mNetwork->defaultInputPattern(*mTime);
 
       for (size_t i = 0; i < infos.size(); ++i)
       {
@@ -83,15 +107,15 @@ void Layer::update()
             break;
 
          case RANDOM_CURRENT:
-            mNeurons[infos[i].mNeuronIndex]->addInputCurrent(mTime, RANDOMINPUT);
+            mNeurons[infos[i].mNeuronIndex]->addInputCurrent(*mTime, RANDOMINPUT);
             break;
 
          case MAX_CURRENT:
-            mNeurons[infos[i].mNeuronIndex]->addInputCurrent(mTime, mMaxInputCurrent);
+            mNeurons[infos[i].mNeuronIndex]->addInputCurrent(*mTime, mMaxInputCurrent);
             break;
 
          case MANUAL_CURRENT:
-            mNeurons[infos[i].mNeuronIndex]->addInputCurrent(mTime, infos[i].mManualCurrent);
+            mNeurons[infos[i].mNeuronIndex]->addInputCurrent(*mTime, infos[i].mManualCurrent);
             break;
 
          default:
@@ -112,18 +136,27 @@ void Layer::update()
          mNeurons[order[i]]->update();
    }
 
-   if (mLearningFlag)
-      if (mTime % mSTDPTimeStep == 0)
-         applyWeightChanges();
+   if (mExShouldLearn || mInShouldLearn)
+      if (*mTime % mSTDPTimeStep == 0)
+      {
+         for (size_t i = 0; i < mSynapses.size(); ++i)
+         {
+            if((mSynapses[i]->getType() == EXCITATORY && mExShouldLearn) ||
+               (mSynapses[i]->getType() == INHIBITORY && mInShouldLearn))
+               mSynapses[i]->updateWeight();
+         }
+      }
 
    if (mLogActivityFlag)
-      if (mTime % 60000 == 0)
+      if (*mTime % 60000 == 0)
       {
-         mLogger.set("Layer" + Logger::toString((float)mID) + "Min" + Logger::toString((float)(mTime / 60000)));
+         int min = *mTime / 60000;
+         int startmin = (min-1) * 60000;
+         mLogger.set("Layer" + Logger::toString((float)mID) + "Min" + Logger::toString((float)(min)));
 
          std::string s = "";
          for (size_t i = 0; i < mSpikes.size(); ++i)
-            s += (Logger::toString((float)mSpikes[i].mTime) + " " + Logger::toString((float)mSpikes[i].mNeuronID) + "\n");
+            s += (Logger::toString((float)mSpikes[i].mTime - startmin) + " " + Logger::toString((float)mSpikes[i].mNeuronID) + "\n");
 
          mSpikes.clear();
 
@@ -140,20 +173,20 @@ void Layer::makeConnection(Layer* source, Layer* dest, float synapseProb, float 
    for (std::size_t i = 0; i < source->mNeurons.size(); ++i)
       for (std::size_t j = 0; j < dest->mNeurons.size(); ++j)
       {
-         float f = float(rand() / RAND_MAX);
+         float f = float(rand()) / RAND_MAX;
          if (f < synapseProb)
          {
             if (source->mNeurons[i]->getType() == EXCITATORY)
             {
                Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], excitatoryWeight, excitatoryDelay);
-               source->mSynapses.push_back(syn);
+               dest->mSynapses.push_back(syn);
                //if (source != dest)
                //   dest->mSynapses.push_back(syn);
             }
             else
             {
                Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], inhibitoryWeight, inhibitoryDelay);
-               source->mSynapses.push_back(syn);
+               dest->mSynapses.push_back(syn);
                //if (source != dest)
                //   dest->mSynapses.push_back(syn);
             }
@@ -182,14 +215,14 @@ void Layer::makeConnection(Layer* source, Layer* dest,
          if (source->mNeurons[i]->getType() == EXCITATORY)
          {
             Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[k], excitatoryWeight, excitatoryDelay);
-            source->mSynapses.push_back(syn);
+            dest->mSynapses.push_back(syn);
             //if (source != dest)
             //   dest->mSynapses.push_back(syn);
          }
          else
          {
             Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[k], inhibitoryWeight, inhibitoryDelay);
-            source->mSynapses.push_back(syn);
+            dest->mSynapses.push_back(syn);
             //if (source != dest)
             //   dest->mSynapses.push_back(syn);
          }
@@ -206,25 +239,13 @@ void Layer::makeConnection(Layer* source, Layer* dest, ConnectionInfo (*pattern)
          if (info.mConnectFlag)
          {
             Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay, info.mType);
-            source->mSynapses.push_back(syn);
+            dest->mSynapses.push_back(syn);
 
             //is it right??
             //if (source != dest)
             //   dest->mSynapses.push_back(syn);
          }
       }
-}
-
-void Layer::applyWeightChanges()
-{
-   int t = mNetwork->getTime();
-   for (size_t i = 0; i < mSynapses.size(); ++i)
-   {
-      if(mSynapses[i]->mType == EXCITATORY) mSynapses[i]->updateWeight();
-
-      if (t % 1000 == 0 && mSynapses[i]->mLogWeightFlag)
-         mSynapses[i]->mLogger.writeLine(Logger::toString((float)t) + " " + Logger::toString(mSynapses[i]->mWeight));
-   }
 }
 
 void Layer::logWeight(bool (*pattern)(int))
@@ -267,9 +288,9 @@ void Layer::logPreSynapseWeight(int neuron, std::string directory)
 
 std::vector<int> Layer::getWeightFrequencies()
 {
-   std::vector<int> freq ((unsigned int)(mMaxWeight / 0.2)+1, 0);
+   std::vector<int> freq ((unsigned int)(mExMaxWeight / 0.2)+1, 0);
    for (size_t i = 0; i < mSynapses.size(); ++i)
-      freq[(unsigned int)(mSynapses[i]->mWeight / 0.2)]++;
+      freq[(unsigned int)(mSynapses[i]->getWeight() / 0.2)]++;
 
    return freq;
 }
@@ -293,12 +314,16 @@ int Layer::getNextSynapseID()
    return mNetwork->getNextSynapseID();
 }
 
-void Layer::setBoundingParameters(float maxWeight, float minRandWeight, 
-      float maxRandWeight, int minRandDelay, int maxRandDelay)
+void Layer::setBoundingParameters(float exMaxWeight, float inMaxWeight, float exMinRandWeight, 
+      float exMaxRandWeight, float inMinRandWeight, float inMaxRandWeight,
+      int minRandDelay, int maxRandDelay)
 {
-   if (maxWeight != -1) mMaxWeight = maxWeight;
-   if (maxRandWeight != -1) mMaxRandWeight = maxRandWeight;
-   if (minRandWeight != -1) mMinRandWeight = minRandWeight;
+   if (exMaxWeight != -1) mExMaxWeight = exMaxWeight;
+   if (exMaxRandWeight != -1) mExMaxRandWeight = exMaxRandWeight;
+   if (exMinRandWeight != -1) mExMinRandWeight = exMinRandWeight;
+   if (inMaxWeight != -1) mInMaxWeight = inMaxWeight;
+   if (inMaxRandWeight != -1) mInMaxRandWeight = inMaxRandWeight;
+   if (inMinRandWeight != -1) mInMinRandWeight = inMinRandWeight;
    if (maxRandDelay != -1) mMaxRandDelay = maxRandDelay;
    if (minRandDelay != -1) mMinRandDelay = minRandDelay;
 }
@@ -313,3 +338,25 @@ std::string Layer::getAddress(int slayer, int sneuron, int dlayer, int dneuron)
 {
    return mNetwork->getAddress(slayer, sneuron, dlayer, dneuron);
 }
+
+template <class Archive>
+void Layer::serialize(Archive &ar, const unsigned int version)
+{
+   ar & mNetwork & mID
+      & mNeurons & mSynapses
+      & mInputPatternMode & mExLearningFlag
+      & mInLearningFlag & mLockExLearningFlag
+      & mLockInLearningFlag & mContainerFlag
+      & mAP & mAN
+      & mTaoP & mTaoN
+      & mCMultiplier & mDecayWeightMultiplier
+      & mSTDPTimeStep & mExMaxWeight 
+      & mExMaxRandWeight & mExMinRandWeight
+      & mInMaxWeight & mInMaxRandWeight
+      & mInMinRandWeight & mMaxRandDelay
+      & mMinRandDelay & mMinInputCurrent
+      & mMaxInputCurrent;
+}
+
+template void Layer::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);
+template void Layer::serialize<boost::archive::text_iarchive>(boost::archive::text_iarchive &ar, const unsigned int version);

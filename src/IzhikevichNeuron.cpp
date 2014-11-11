@@ -1,6 +1,11 @@
 #include "IzhikevichNeuron.h"
 #include "Network.h"
 #include <cmath>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/serialization/export.hpp>
+
+BOOST_CLASS_EXPORT(IzhikevichNeuron);
 
 IzhikevichNeuron::IzhikevichNeuron(Layer* layer, int ID, ChannelType type, ParameterContainer* params) : Neuron(layer, ID, type)
 {
@@ -56,3 +61,14 @@ void IzhikevichNeuron::rest()
    mV = (mB - 5 - std::sqrt((5-mB)*(5-mB)-4*0.04f*140))/0.08f;
    mU = mB*mV;
 }
+
+template <class Archive>
+void IzhikevichNeuron::serialize(Archive &ar, const unsigned int version)
+{
+   ar & boost::serialization::base_object<Neuron>(*this);
+   ar & mA & mB & mC
+      & mD & mV & mU;
+}
+
+template void IzhikevichNeuron::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);
+template void IzhikevichNeuron::serialize<boost::archive::text_iarchive>(boost::archive::text_iarchive &ar, const unsigned int version);

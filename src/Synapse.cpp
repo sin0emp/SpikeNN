@@ -3,13 +3,22 @@
 #include "Neuron.h"
 #include <cmath>
 #include <iostream>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
 
 Synapse::Synapse(Layer* layer, Neuron* pre, Neuron* post, ChannelType type, float weight, int delay)
 {
    //srand((int)time(0));
-
+   
    if (weight == -1)
-      weight = layer->getMinRandWeight() + ((float)rand()/RAND_MAX) * (layer->getMaxRandWeight()-layer->getMinRandWeight());
+   {
+      if (type == EXCITATORY)
+         weight = layer->getExcitatoryMinRandWeight() + ((float)rand()/RAND_MAX) * 
+                  (layer->getExcitatoryMaxRandWeight()-layer->getExcitatoryMinRandWeight());
+      else
+         weight = layer->getInhibitoryMinRandWeight() + ((float)rand()/RAND_MAX) *
+                  (layer->getInhibitoryMaxRandWeight()-layer->getInhibitoryMinRandWeight());
+   }
 
    if (delay == -1)
       delay = (int)std::floor(((float)rand()/RAND_MAX) * (layer->getMaxRandDelay()-layer->getMinRandDelay()) +
@@ -22,7 +31,17 @@ Synapse::Synapse(Layer* layer, Neuron* pre, Neuron* post, ChannelType type, floa
    mDelay = delay;
    mType = type;
    mID = layer->getNextSynapseID();
-   mLogger.set(mLayer->getAddress(pre->getLayerID(), pre->getID(), post->getLayerID(), post->getID()));
+   wakeup();
+   //mLogger.set(mLayer->getAddress(pre->getLayerID(), pre->getID(), post->getLayerID(), post->getID()));
+}
+
+void Synapse::wakeup()
+{
+   mTime = mLayer->getPointerToTime();
+}
+
+void Synapse::initialize()
+{
    mLogWeightFlag = false;
    mLastPostSpikeTime = mLastPreSpikeTime = -1000;
    mC = 0;
@@ -30,7 +49,7 @@ Synapse::Synapse(Layer* layer, Neuron* pre, Neuron* post, ChannelType type, floa
 
 void Synapse::addSpike()
 {
-   mLastPreSpikeTime = mLayer->getTime();
+   mLastPreSpikeTime = *mTime;
 
    if (mType == EXCITATORY)
       mPostNeuron->addInputCurrent(mLastPreSpikeTime + mDelay, mWeight);
@@ -39,13 +58,17 @@ void Synapse::addSpike()
    else if (mType == RESET)
       mPostNeuron->rest(); //should delay be takan into account?
 
-   if (mLayer->getLearningFlag() && mType == EXCITATORY) stepIncreaseSTDP();
+   if ((mType == EXCITATORY && mLayer->shouldExcitatoryLearn())||
+       (mType == INHIBITORY && mLayer->shouldInhibitoryLearn())) stepIncreaseSTDP();
+   mLastPostSpikeTime = -1000;
 }
 
 void Synapse::setPostSpikeTime()
 {
-   mLastPostSpikeTime = mLayer->getTime();
-   if (mLayer->getLearningFlag() && mType == EXCITATORY) stepIncreaseSTDP();
+   mLastPostSpikeTime = *mTime;
+   if ((mType == EXCITATORY && mLayer->shouldExcitatoryLearn())||
+       (mType == INHIBITORY && mLayer->shouldInhibitoryLearn())) stepIncreaseSTDP();
+   mLastPreSpikeTime = -1000;
 }
 
 void Synapse::stepIncreaseSTDP()
@@ -62,10 +85,16 @@ void Synapse::updateWeight()
    float d = mLayer->getDAConcentraion();
    //mWeight += (d == -1) ? (0.01f + mC) : mC * (0.002f + d);  //this is izhikevich version but why add constants???
    mWeight += (d == -1) ? mC : mC * d;
-   if (mWeight > mLayer->getMaxWeight()) mWeight = mLayer->getMaxWeight();
+   float maxWeight = (mType == EXCITATORY) ? 
+      mLayer->getExcitatoryMaxWeight() : mLayer->getInhibitoryMaxWeight();
+   if (mWeight > maxWeight) mWeight = maxWeight;
    if (mWeight < 0) mWeight = 0;
    mC *= mLayer->getCMultiplier();
    mWeight *= mLayer->getDecayMultiplier();
+
+   if (*mTime % 1000 == 0 && mLogWeightFlag)
+      mLogger.writeLine(Logger::toString((float)*mTime) + " " + Logger::toString(mWeight));
+
 }
 
 void Synapse::addWeightLog(std::string directory)
@@ -86,3 +115,19 @@ void Synapse::logWeight(bool (*pattern)(int, int, int, int))
    if ((*pattern)(mPreNeuron->getLayerID(), mPreNeuron->getID(), mPostNeuron->getLayerID(), mPostNeuron->getID()))
       mLogWeightFlag = true;
 }
+
+bool Synapse::isFromLayer(int layerIndex) 
+{
+   return layerIndex == mPreNeuron->getLayerID();
+}
+
+template <class Archive>
+void Synapse::serialize(Archive &ar, const unsigned int version)
+{
+   ar & mLayer & mID & mPreNeuron
+      & mPostNeuron & mWeight & mDelay
+      & mType;
+}
+
+template void Synapse::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);
+template void Synapse::serialize<boost::archive::text_iarchive>(boost::archive::text_iarchive &ar, const unsigned int version);
