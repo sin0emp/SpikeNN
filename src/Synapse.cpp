@@ -31,8 +31,9 @@ Synapse::Synapse(Layer* layer, Neuron* pre, Neuron* post, ChannelType type, floa
    mDelay = delay;
    mType = type;
    mID = layer->getNextSynapseID();
+   initialize();
    wakeup();
-   //mLogger.set(mLayer->getAddress(pre->getLayerID(), pre->getID(), post->getLayerID(), post->getID()));
+   mLogger.set(mLayer->getAddress(pre->getLayerID(), pre->getID(), post->getLayerID(), post->getID()));
 }
 
 void Synapse::wakeup()
@@ -60,7 +61,7 @@ void Synapse::addSpike()
 
    if ((mType == EXCITATORY && mLayer->shouldExcitatoryLearn())||
        (mType == INHIBITORY && mLayer->shouldInhibitoryLearn())) stepIncreaseSTDP();
-   mLastPostSpikeTime = -1000;
+   //mLastPostSpikeTime = -1000;
 }
 
 void Synapse::setPostSpikeTime()
@@ -68,7 +69,7 @@ void Synapse::setPostSpikeTime()
    mLastPostSpikeTime = *mTime;
    if ((mType == EXCITATORY && mLayer->shouldExcitatoryLearn())||
        (mType == INHIBITORY && mLayer->shouldInhibitoryLearn())) stepIncreaseSTDP();
-   mLastPreSpikeTime = -1000;
+   //mLastPreSpikeTime = -1000;
 }
 
 void Synapse::stepIncreaseSTDP()

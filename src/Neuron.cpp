@@ -16,7 +16,7 @@ Neuron::Neuron(Layer* layer, int ID, ChannelType type)
    mID = ID;
    initialize();
    wakeup();
-   //mLogger.set(mLayer->getAddress(mLayer->getID(), mID));
+   mLogger.set(mLayer->getAddress(mLayer->getID(), mID));
 }
 
 void Neuron::wakeup()

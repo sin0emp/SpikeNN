@@ -16,11 +16,8 @@
 #include <fstream>
 #include <string>
 
-namespace boost{ namespace serialization { class access; } namespace archive { class text_oarchive; } }
-
 class MODULE_EXPORT Logger
 {
-   friend class boost::serialization::access;
 public:
    //Logger(const Logger& rhs)
    //{
