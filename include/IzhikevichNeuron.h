@@ -4,9 +4,9 @@
 #ifndef MODULE_EXPORT
    #if defined(_WIN32) || defined(_WIN_64)
       #ifdef SpikeNN_EXPORTS
-         #define MODULE_EXPORT  __declspec(dllexport)   // export DLL information
+         #define MODULE_EXPORT __declspec(dllexport)    // export DLL information
       #else
-         #define MODULE_EXPORT  __declspec(dllimport)   // import DLL information
+         #define MODULE_EXPORT __declspec(dllimport)    // import DLL information
       #endif
    #else
       #define MODULE_EXPORT
@@ -16,11 +16,13 @@
 #include "Neuron.h"
 #include "GlobalVars.h"
 
+namespace boost{ namespace serialization { class access; } namespace archive { class text_oarchive; } }
 class Network;
 class Layer;
 
 class MODULE_EXPORT IzhikevichNeuron : public Neuron
 {
+   friend class boost::serialization::access;
 public:
    //default parameters describes a regular spike: a = 0.02, b = 0.2, c = -65, d = 2
    //default parameters describes a fast spike:
@@ -30,13 +32,17 @@ public:
    void setParameters(ParameterContainer params);
    virtual float updatePotential();
    virtual void rest();
-   
+
 private:
    //model parameters
    float mA, mB, mC, mD;
 
    //model variables
    float mV, mU;
+
+   template <class Archive>
+   void serialize(Archive &ar, const unsigned int version);
+   IzhikevichNeuron() {}
 };
 
 //structure for the izhikech model's parameters used for initialization

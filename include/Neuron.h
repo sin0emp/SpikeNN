@@ -4,9 +4,9 @@
 #ifndef MODULE_EXPORT
    #if defined(_WIN32) || defined(_WIN_64)
       #ifdef SpikeNN_EXPORTS
-         #define MODULE_EXPORT  __declspec(dllexport)   // export DLL information
+         #define MODULE_EXPORT __declspec(dllexport)    // export DLL information
       #else
-         #define MODULE_EXPORT  __declspec(dllimport)   // import DLL information
+         #define MODULE_EXPORT __declspec(dllimport)    // import DLL information
       #endif
    #else
       #define MODULE_EXPORT
@@ -18,14 +18,17 @@
 #include "Synapse.h"
 #include "GlobalVars.h"
 
+namespace boost{ namespace serialization { class access; } namespace archive { class text_oarchive; } }
 class Layer;
 struct CurrentInfo;
 
 class MODULE_EXPORT Neuron
 {
+   friend class boost::serialization::access;
 public:
    Neuron(Layer* layer, int ID, ChannelType type = EXCITATORY);
    ~Neuron();
+   void wakeup();
 
    void update();
    void addInputCurrent(int time, float current);
@@ -43,6 +46,7 @@ public:
    void logPostSynapseWeight(std::string directory = "");
    void logPreSynapseWeight(std::string directory = "");
 
+   std::vector<float> getResponseFromLayer(int sourceLayer);
    virtual void rest();
 
 protected:
@@ -57,12 +61,19 @@ protected:
    std::vector<int>              mSpikeTimes;
    Logger                        mLogger;
    bool                          mLogPotentialFlag;
+   const int*                    mTime;
 
    //int                          mLastLoggedIndex;
    std::vector<CurrentInfo>      mInputCurrentQueue;
    int                           mInputCurrentNum;
 
    virtual float updatePotential() = 0;
+
+   void initialize();
+
+   template <class Archive>
+   void serialize(Archive &ar, const unsigned int version);
+   Neuron() { initialize(); }
 };
 
 struct CurrentInfo
@@ -70,6 +81,12 @@ struct CurrentInfo
    CurrentInfo(int time, float current) : fireTime(time), currentToAdd(current){};
    int      fireTime;
    float    currentToAdd;
+
+   template <class Archive>
+   void serialize(Archive &ar, const unsigned int version)
+   {
+      ar & fireTime & currentToAdd;
+   }
 };
 
 #endif

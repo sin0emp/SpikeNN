@@ -4,9 +4,9 @@
 #ifndef MODULE_EXPORT
    #if defined(_WIN32) || defined(_WIN_64)
       #ifdef SpikeNN_EXPORTS
-         #define MODULE_EXPORT  __declspec(dllexport)   // export DLL information
+         #define MODULE_EXPORT __declspec(dllexport)    // export DLL information
       #else
-         #define MODULE_EXPORT  __declspec(dllimport)   // import DLL information
+         #define MODULE_EXPORT __declspec(dllimport)    // import DLL information
       #endif
    #else
       #define MODULE_EXPORT
@@ -21,8 +21,11 @@
 #include "GlobalVars.h"
 #include "DAHandler.h"
 
+namespace boost{ namespace serialization { class access; } namespace archive { class text_oarchive; } }
+
 class MODULE_EXPORT Network
 {
+   friend class boost::serialization::access;
    friend class DAHandler;
 public:
    Network();
@@ -63,8 +66,9 @@ public:
    }
 
    //Network control methods
-   int  getTime() {return mTime;}
-   float getDAConcentraion() {return (mDAHandler)?mDAHandler->getDAConcentraion():-1;}
+   int  getTime() { return mTime; }
+   const int* getPointerToTime() { return &mTime; }
+   float getDAConcentraion() {return (mDAHandler)?mDAHandler->getDAConcentraion():-1; }
    int  getNextSynapseID() { return ++mLastSynapseID; }
    void addDAModule();
    void runNetwork(int maxTime);
@@ -83,56 +87,85 @@ public:
       int STDPTimeStep = 100, float TaoP = 20, float TaoN = 20)
    { mLayers[layerIndex]->setSTDPParameters(CMultiplier, AP, AN, decayMultiplier, STDPTimeStep, TaoP, TaoN); }
 
-   void setSTDPParameters(float CMultiplier, float AP, float AN, float decayMultiplier = 1, 
+   void setDefaultSTDPParameters(float CMultiplier, float AP, float AN, float decayMultiplier = 1, 
       int STDPTimeStep = 100, float TaoP = 20, float TaoN = 20)
    {
-      for (size_t i = 0; i < mLayers.size(); ++i)
-         mLayers[i]->setSTDPParameters(CMultiplier, AP, AN, STDPTimeStep, TaoP, TaoN);
-
       //reset default parameters
       mCMultiplier = CMultiplier;
       mAP = AP;
       mAN = AN;
+      mDecayWeightMultiplier = decayMultiplier;
       mSTDPTimeStep = STDPTimeStep;
       mTaoP = TaoP;
       mTaoN = TaoN;
-      mDecayWeightMultiplier = decayMultiplier;
    }
 
 
-   void setBoundingParameters(int layerIndex, float maxWeight, float minRandWeight, 
-      float maxRandWeight, int minRandDelay, int maxRandDelay)
-   { mLayers[layerIndex]->setBoundingParameters(maxWeight, minRandWeight, maxRandWeight, minRandDelay, maxRandDelay); }
+   void setBoundingParameters(int layerIndex, float exMaxWeight, float inMaxWeight, float exMinRandWeight, 
+                              float exMaxRandWeight, float inMinRandWeight, float inMaxRandWeight,
+                              int minRandDelay, int maxRandDelay)
+   { mLayers[layerIndex]->setBoundingParameters(exMaxWeight, inMaxWeight, exMinRandWeight, 
+                            exMaxRandWeight, inMinRandWeight, inMaxRandWeight, minRandDelay, maxRandDelay); }
 
-   void setBoundingParameters(float maxWeight, float minRandWeight, 
-      float maxRandWeight, int minRandDelay, int maxRandDelay)
+   void setDefaultBoundingParameters(float exMaxWeight, float inMaxWeight, float exMinRandWeight, 
+                              float exMaxRandWeight, float inMinRandWeight, float inMaxRandWeight,
+                              int minRandDelay, int maxRandDelay)
    {
-      for (size_t i = 0; i < mLayers.size(); ++i)
-         mLayers[i]->setBoundingParameters(maxWeight, minRandWeight, maxRandWeight, minRandDelay, maxRandDelay);
-
       //reset default parameters
-      mMaxWeight = maxWeight;
-      mMaxRandWeight = maxRandWeight;
-      mMinRandWeight = minRandWeight;
-      mMaxRandDelay = maxRandDelay;
-      mMinRandDelay = minRandDelay;
+      if (exMaxWeight != -1) mExMaxWeight = exMaxWeight;
+      if (exMaxRandWeight != -1) mExMaxRandWeight = exMaxRandWeight;
+      if (exMinRandWeight != -1) mExMinRandWeight = exMinRandWeight;
+      if (inMaxWeight != -1) mInMaxWeight = inMaxWeight;
+      if (inMaxRandWeight != -1) mInMaxRandWeight = inMaxRandWeight;
+      if (inMinRandWeight != -1) mInMinRandWeight = inMinRandWeight;
+      if (maxRandDelay != -1) mMaxRandDelay = maxRandDelay;
+      if (minRandDelay != -1) mMinRandDelay = minRandDelay;
    }
 
    void setCurrentParameters(int layerIndex, float MinInputCurrent, float MaxInputCurrent)
    { mLayers[layerIndex]->setCurrentParameters(MinInputCurrent, MaxInputCurrent); }
 
-   void setLearningFlag(int layerIndex, bool learningFlag)
-   { mLayers[layerIndex]->setLearningFlag(learningFlag); }
+   void setExcitatoryLearningFlag(int layerIndex, bool flag)
+   { mLayers[layerIndex]->setExcitatoryLearningFlag(flag); }
+
+   void setIInhibitoryLearningFlag(int layerIndex, bool flag)
+   { mLayers[layerIndex]->setInhibitoryLearningFlag(flag); }
+
+   void setExcitatoryLearningLock(int layerIndex, bool flag)
+   { mLayers[layerIndex]->setExcitatoryLearningLock(flag); }
+
+   void setInhibitoryLearningLock(int layerIndex, bool flag)
+   { mLayers[layerIndex]->setInhibitoryLearningLock(flag); }
 
    void setContainerFlag(int layerIndex, bool containerFlag)
    { mLayers[layerIndex]->setContainerFlag(containerFlag); }
 
-   Logger mLogger;
-   bool   mLogSettingsFlag;
+   void setExcitatoryLearningLock(bool flag)
+   {
+      for (size_t i = 0; i < mLayers.size(); ++i)
+         mLayers[i]->setExcitatoryLearningLock(flag);
+   }
+
+   void setInhibitoryLearningLock(bool flag)
+   {
+      for (size_t i = 0; i < mLayers.size(); ++i)
+         mLayers[i]->setInhibitoryLearningLock(flag);
+   }
+
+   void setLearningLock(bool flag)
+   {
+      setExcitatoryLearningLock(flag); setInhibitoryLearningLock(flag);
+   }
+
+   std::vector<float> getResponseFromLayer(int sourceLayer, int destLayer, int destNeuron)
+   { return mLayers[destLayer]->getResponseFromLayer(sourceLayer, destNeuron); }
 
    virtual ConnectionInfo defaultConnectingPattern(int sourceIndex, int destIndex);
    virtual std::vector<InputInformation> defaultInputPattern(int time);
    virtual std::string getAddress(int slayer, int sneuron = -1, int dlayer = -1, int dneuron = -1);
+
+   void saveNetwork(std::string path);
+   static Network& loadNetwork(std::string path);
 
 protected:
    int                  mTime;
@@ -140,6 +173,9 @@ protected:
    DAHandler*           mDAHandler;
    int                  mLastLayerID;
    int                  mLastSynapseID;
+   Logger               mLogger;
+   bool                 mLogSettingsFlag;
+
 
    //default STDP settings
    float mAP;    //max of positive part of STDP function
@@ -150,10 +186,15 @@ protected:
    float mDecayWeightMultiplier; //a constant which multiplies weight of every synapse, every mSTDPTimeStep milisecs
    int   mSTDPTimeStep;
 
-   //default bounding parameters
-   float mMaxWeight;
-   float mMaxRandWeight;
-   float mMinRandWeight;
+   //bounding parameters for excitatory connections
+   float mExMaxWeight;
+   float mExMaxRandWeight;
+   float mExMinRandWeight;
+   //bounding parameters for inhibitory connections
+   float mInMaxWeight;
+   float mInMaxRandWeight;
+   float mInMinRandWeight;
+   //bounding parameters for connections' delay
    int   mMaxRandDelay;
    int   mMinRandDelay;
 
@@ -161,8 +202,11 @@ protected:
    float mMinInputCurrent;
    float mMaxInputCurrent;
 
-
    float mDefaultConnectionProbability;
+
+   template <class Archive>
+   void serialize(Archive &ar, const unsigned int version);
+   void initialize();
 };
 
 template <class NeuronTemp>

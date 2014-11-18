@@ -4,9 +4,9 @@
 #ifndef MODULE_EXPORT
    #if defined(_WIN32) || defined(_WIN_64)
       #ifdef SpikeNN_EXPORTS
-         #define MODULE_EXPORT  __declspec(dllexport)   // export DLL information
+         #define MODULE_EXPORT __declspec(dllexport)    // export DLL information
       #else
-         #define MODULE_EXPORT  __declspec(dllimport)   // import DLL information
+         #define MODULE_EXPORT __declspec(dllimport)    // import DLL information
       #endif
    #else
       #define MODULE_EXPORT
@@ -19,14 +19,17 @@
 #include <vector>
 #include <map>
 
+namespace boost{ namespace serialization { class access; } namespace archive { class text_oarchive; } }
 class Network;
 struct SpikeInfo;
 
 class MODULE_EXPORT Layer
 {
+   friend class boost::serialization::access;
    friend class DAHandler;
 public:
    Layer(Network* net, int ID, bool shouldLearn = true, bool isContainer = false);
+   void wakeup(); //used to set dependent parameters loading
    ~Layer();
 
    template <class NeutonTemp>
@@ -35,7 +38,6 @@ public:
    { mInputPatternMode = mode; mInputPattern = pattern; }
 
    void update();
-   void applyWeightChanges();
    std::vector<int> getWeightFrequencies();
 
    void logWeight(bool (*pattern)(int) = 0);
@@ -45,11 +47,21 @@ public:
    void logPostSynapseWeight(int neuron, std::string directory = "");
    void logPreSynapseWeight(int neuron, std::string directory = "");
 
-   int  getTime() { return mTime; }
+   int  getTime() { return *mTime; }
    bool getContainerFlag() { return mContainerFlag; }
-   bool getLearningFlag() { return mLearningFlag; }
-   void setLearningFlag(bool learningFlag) { mLearningFlag = learningFlag; }
-   void setContainerFlag(bool containerFlag) { mContainerFlag = containerFlag; }
+   void setContainerFlag(bool flag) { mContainerFlag = flag; }
+
+   bool getExcitatoryLearningFlag() { return mExLearningFlag; }
+   void setExcitatoryLearningFlag(bool flag) { mExLearningFlag = flag; updateLearningFlags(); }
+   bool getInhibitoryLearningFlag() { return mInLearningFlag; }
+   void setInhibitoryLearningFlag(bool flag) { mInLearningFlag = flag; updateLearningFlags(); }
+   bool getLockExcitatoryLearningFlag() { return mLockExLearningFlag; }
+   void setExcitatoryLearningLock(bool flag) { mLockExLearningFlag = flag; updateLearningFlags(); }
+   bool getLockInhibitoryLearningFlag() { return mLockInLearningFlag; }
+   void setInhibitoryLearningLock(bool flag) { mLockInLearningFlag = flag; updateLearningFlags(); }
+   bool shouldExcitatoryLearn() { return mExShouldLearn; }
+   bool shouldInhibitoryLearn() { return mInShouldLearn; }
+   
    void recordSpike(int NeuronID);
    
    void setSTDPParameters(float CMultiplier, float AP, float AN, float decayMultiplier = 1,
@@ -57,16 +69,20 @@ public:
    { mCMultiplier = CMultiplier; mAP = AP; mAN = AN; mDecayWeightMultiplier = decayMultiplier,
      mSTDPTimeStep = STDPTimeStep; mTaoP = TaoP; mTaoN = TaoN; }
 
-   void setBoundingParameters(float maxWeight, float minRandWeight, 
-      float maxRandWeight, int minRandDelay, int maxRandDelay);
+   void setBoundingParameters(float exMaxWeight, float inMaxWeight, float exMinRandWeight, 
+      float exMaxRandWeight, float inMinRandWeight, float inMaxRandWeight,
+      int minRandDelay, int maxRandDelay);
 
-   void setCurrentParameters(float MinInputCurrent, float MaxInputCurrent)
-   { mMinInputCurrent = MinInputCurrent; mMaxInputCurrent = MaxInputCurrent; }
+   void setCurrentParameters(float minInputCurrent, float maxInputCurrent)
+   { mMinInputCurrent = minInputCurrent; mMaxInputCurrent = maxInputCurrent; }
 
    int   getID() { return mID; }
-   float getMaxWeight() { return mMaxWeight; }
-   float getMinRandWeight() { return mMinRandWeight; }
-   float getMaxRandWeight() { return mMaxRandWeight; }
+   float getExcitatoryMaxWeight() { return mExMaxWeight; }
+   float getExcitatoryMinRandWeight() { return mExMinRandWeight; }
+   float getExcitatoryMaxRandWeight() { return mExMaxRandWeight; }
+   float getInhibitoryMaxWeight() { return mInMaxWeight; }
+   float getInhibitoryMinRandWeight() { return mInMinRandWeight; }
+   float getInhibitoryMaxRandWeight() { return mInMaxRandWeight; }
    int   getMinRandDelay() { return mMinRandDelay; }
    int   getMaxRandDelay() { return mMaxRandDelay; }
    float getAP() { return mAP; }
@@ -77,8 +93,11 @@ public:
    float getDecayMultiplier() { return mDecayWeightMultiplier; }
    int   getNextSynapseID();
    float getDAConcentraion();
+   const int* getPointerToTime() { return mTime; }
    void  restNeurons();
    std::string getAddress(int slayer, int sneuron = -1, int dlayer = -1, int dneuron = -1);
+   std::vector<float> getResponseFromLayer(int sourceLayer, int destNeuron)
+   { return mNeurons[destNeuron]->getResponseFromLayer(sourceLayer); }
 
    //static std::vector<InputInformation> allRandomInputPattern(int time);
    //static std::vector<InputInformation> oneRandomInputPattern(int time);
@@ -96,16 +115,27 @@ public:
 
    static void makeConnection(Layer* source, Layer* dest, ConnectionInfo (*pattern)(int, int) = 0);
 
-public:
+private:
    Network*                      mNetwork;
-   int                           mTime;
+   const int*                    mTime;
    int                           mID;
    std::vector<Neuron*>          mNeurons;
    std::vector<Synapse*>         mSynapses;
    std::vector<SpikeInfo>        mSpikes;
    InputPatternMode              mInputPatternMode;
    std::vector<InputInformation> (*mInputPattern)(int);
-   bool                          mLearningFlag;
+
+   //flags to control learning
+   bool                          mExLearningFlag;
+   bool                          mInLearningFlag;
+   bool                          mLockExLearningFlag;
+   bool                          mLockInLearningFlag;
+   //these two will be computed automatically to avoid unneccessary calculations
+   bool                          mExShouldLearn;
+   bool                          mInShouldLearn;
+   void updateLearningFlags() { mExShouldLearn = mExLearningFlag && !mLockExLearningFlag;
+                                mInShouldLearn = mInLearningFlag && !mLockInLearningFlag; }
+
    bool                          mContainerFlag;
    bool                          mLogActivityFlag;
    Logger                        mLogger;
@@ -120,16 +150,25 @@ public:
    int   mSTDPTimeStep;
    
 
-   //bounding parameters
-   float mMaxWeight;
-   float mMaxRandWeight;
-   float mMinRandWeight;
+   //bounding parameters for excitatory connections
+   float mExMaxWeight;
+   float mExMaxRandWeight;
+   float mExMinRandWeight;
+   //bounding parameters for inhibitory connections
+   float mInMaxWeight;
+   float mInMaxRandWeight;
+   float mInMinRandWeight;
+   //bounding parameters for connections' delay
    int   mMaxRandDelay;
    int   mMinRandDelay;
-
-   //input current parameters
+   //bounding parameters for input currents
    float mMinInputCurrent;
    float mMaxInputCurrent;
+
+   template <class Archive>
+   void serialize(Archive &ar, const unsigned int version);
+   Layer() { initialize(); } //used only by boost::serialization
+   void initialize(); // default parameters
 };
 
 template <class NeuronTemp>
@@ -143,5 +182,11 @@ struct SpikeInfo
 {
    int mNeuronID;
    int mTime;
+
+   template <class Archive>
+   void serialize(Archive &ar, const unsigned int version)
+   {
+      ar & mNeuronID & mTime;
+   }
 };
 #endif

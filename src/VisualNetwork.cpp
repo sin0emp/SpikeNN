@@ -110,7 +110,7 @@ std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
                         break;
                   }
 
-                  timeToAdd += (int)(20*(gray/256))+20;
+                  timeToAdd += (int)(20*(gray/256))+50;
                }
             }
          }

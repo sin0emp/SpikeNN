@@ -9,6 +9,7 @@ enum ChannelType
 {
    EXCITATORY = 0,
    INHIBITORY,
+   RESET,
    DEPENDENT
 };
 
@@ -67,12 +68,6 @@ struct ConnectionInfo
    int         mDelay;
 };
 
-struct Point2D
-{
-   Point2D(unsigned int width, unsigned int height) : mWidth(width), mHeight(height) { }
-   Point2D() : mWidth(0), mHeight(0) { }
-   unsigned int mWidth;
-   unsigned int mHeight;
-};
+std::vector<std::size_t> SHUFFLE(std::size_t size);
 
 #endif

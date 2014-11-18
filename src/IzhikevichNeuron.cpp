@@ -46,10 +46,11 @@ float IzhikevichNeuron::updatePotential()
 
    //for better approximation, time step is assumed to be 0.5
    //time step = 0.2 => better approximation??
-   mV += 0.5f * (mV * (0.04f * mV + 5) + 140 - mU + mInputCurrent);
-   mV += 0.5f * (mV * (0.04f * mV + 5) + 140 - mU + mInputCurrent);
-
-   mU += mA * (mB * mV - mU);
+   for (int i=0; i<5; ++i)
+   {
+      mV += 0.2f * (mV * (0.04f * mV + 5) + 140 - mU + mInputCurrent);
+      mU += 0.2f * (mA * (mB * mV - mU));
+   }
 
    return mV;
 }
@@ -67,7 +68,7 @@ void IzhikevichNeuron::serialize(Archive &ar, const unsigned int version)
 {
    ar & boost::serialization::base_object<Neuron>(*this);
    ar & mA & mB & mC
-      & mD & mV & mU;
+      & mD;
 }
 
 template void IzhikevichNeuron::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);

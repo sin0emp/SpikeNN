@@ -22,6 +22,7 @@ Neuron::Neuron(Layer* layer, int ID, ChannelType type)
 void Neuron::wakeup()
 {
    mTime = mLayer->getPointerToTime();
+   rest();
 }
 
 void Neuron::initialize()
