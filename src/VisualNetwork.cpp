@@ -59,8 +59,9 @@ std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
       for (size_t i = 0; i < mLayers.size(); ++i)
          mLayers[i]->restNeurons();
 
-      mCurrentImageIndex = (int)(((float)rand() / RAND_MAX) * mImageFileNames.size());
-      if (mCurrentImageIndex == mImageFileNames.size()) mCurrentImageIndex--;
+      //mCurrentImageIndex = (int)(((float)rand() / RAND_MAX) * mImageFileNames.size());
+      ++mCurrentImageIndex;
+      if (mCurrentImageIndex == mImageFileNames.size()) mCurrentImageIndex = 0;
 
       mLogger.writeLine(Logger::toString((float)time) + " " + mImageFileNames[mCurrentImageIndex]);
       //++mCurrentImageIndex;
@@ -77,21 +78,6 @@ std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
             float gray = (float)(0.21*pix.Red + 0.72*pix.Green + 0.07*pix.Blue);
             if (gray < 200) //a threshold for color strength which leads to an spikes
             {
-               //PixelInputInformation info(Point2D(i,j), time + (int)(20*(gray/256)));
-               //mInputInfos.push_back(info); //distribute spikes with respect to their color strength over 100 milisecond
-               ////insertion sort!
-               //for (size_t i = mInputInfos.size()-1; i > 0; --i)
-               //{
-               //   if (mInputInfos[i].mTime < mInputInfos[i-1].mTime)
-               //   {
-               //      int hold = mInputInfos[i].mTime;
-               //      mInputInfos[i].mTime = mInputInfos[i-1].mTime;
-               //      mInputInfos[i-1].mTime=hold;
-               //   }
-               //   else
-               //      break;
-               //}
-
                int timeToAdd = time + (int)(20*(gray/256));
                while (timeToAdd < time + 100)
                {
@@ -110,7 +96,7 @@ std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
                         break;
                   }
 
-                  timeToAdd += (int)(20*(gray/256))+50;
+                  timeToAdd += 50;
                }
             }
          }
@@ -145,11 +131,18 @@ void VisualNetwork::setInputImagesDirectory(std::string dirName)
 
    if (boost::filesystem::exists(dirPath) && boost::filesystem::is_directory(dirPath))
    {
+      std::vector<std::string> filenames;
       for(boost::filesystem::directory_iterator dir_iter(dirPath); dir_iter != end_iter; ++dir_iter)
       {
          if (dir_iter->path().extension().string() == ".bmp")
-            mImageFileNames.push_back(dir_iter->path().filename().string());
+            filenames.push_back(dir_iter->path().filename().string());
       }
+      
+      std::vector<std::size_t> shuffled = SHUFFLE(filenames.size());
+      
+      mImageFileNames.clear();
+      for (std::size_t i = 0; i < filenames.size(); ++i)
+         mImageFileNames.push_back(filenames[shuffled[i]]);
 
       setInputPattern(mInputLayerIndex, MANUAL_INPUT);
       mImagesFolderName = dirName;
@@ -158,6 +151,7 @@ void VisualNetwork::setInputImagesDirectory(std::string dirName)
    }
    else
    {
+      std::cout<<"could not find directory!";
      //TODO: throw error: could not open directory
    }
 }

@@ -94,6 +94,7 @@ public:
    { return Network::getResponseFromLayer(sourceLayer, destLayer, to1D(destLayer, destNeuron)); }
    std::vector<float> getResponseFromSuperLayer(int sourceSuperLayer, int destLayer, Point2D destNeuron);
 
+   void runNetwork(int epochNum) { Network::runNetwork(epochNum*mImageFileNames.size()*100); }
    static void saveNetwork(VisualNetwork& visNet, std::string path);
    static VisualNetwork* loadNetwork(std::string path);
 

@@ -29,7 +29,7 @@ class MODULE_EXPORT Network
    friend class DAHandler;
 public:
    Network();
-   ~Network();
+   virtual ~Network();
 
    int  addLayer(bool shouldLearn = true, bool isContainer = false);
 
@@ -165,7 +165,7 @@ public:
    virtual std::string getAddress(int slayer, int sneuron = -1, int dlayer = -1, int dneuron = -1);
 
    void saveNetwork(std::string path);
-   static Network& loadNetwork(std::string path);
+   static Network* loadNetwork(std::string path);
 
 protected:
    int                  mTime;

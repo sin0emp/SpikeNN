@@ -135,6 +135,7 @@ private:
    bool                          mInShouldLearn;
    void updateLearningFlags() { mExShouldLearn = mExLearningFlag && !mLockExLearningFlag;
                                 mInShouldLearn = mInLearningFlag && !mLockInLearningFlag; }
+   void flushActivity();
 
    bool                          mContainerFlag;
    bool                          mLogActivityFlag;

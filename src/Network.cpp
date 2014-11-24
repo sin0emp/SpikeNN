@@ -66,7 +66,10 @@ void Network::addDAModule()
 
 void Network::runNetwork(int maxTime)
 {
+#if defined(_WIN32) || defined(_WIN_64)
    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+#endif
+   
    clock_t start = clock();
    mLogger.set("Network");
    std::cout << "Network started." << std::endl;
@@ -204,19 +207,19 @@ void Network::saveNetwork(std::string path)
     file.close();
 }
 
-Network& Network::loadNetwork(std::string path)
+Network* Network::loadNetwork(std::string path)
 {
     std::ifstream file(path.c_str(), std::ios::binary);
     boost::archive::text_iarchive oa(file);
     oa.register_type<Network>();
-    Network net;
-    oa & net;
+    Network* net = new Network();
+    oa & *net;
 
-    for (size_t i = 0; i < net.mLastLayerID; ++i)
-       net.mLayers[i]->wakeup();
+    for (size_t i = 0; i < net->mLastLayerID; ++i)
+       net->mLayers[i]->wakeup();
 
    file.close();
-    return net;
+   return net;
 }
 
 

@@ -74,7 +74,7 @@ void Synapse::setPostSpikeTime()
 
 void Synapse::stepIncreaseSTDP()
 {
-   int t = mLastPostSpikeTime - mLastPreSpikeTime;
+   int t = mLastPostSpikeTime - mLastPreSpikeTime - mDelay;
    if(t >= 0)
       mC += (mLayer->getAP() * std::exp(-t / mLayer->getTaoP()));
    else

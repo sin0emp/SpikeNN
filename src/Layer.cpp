@@ -60,6 +60,9 @@ void Layer::wakeup()
 
 Layer::~Layer()
 {
+   if (mLogActivityFlag)
+      flushActivity();
+   
    for (std::size_t i = 0; i < mNeurons.size(); ++i) 
       delete mNeurons[i];
 }
@@ -149,21 +152,25 @@ void Layer::update()
 
    if (mLogActivityFlag)
       if (*mTime % 60000 == 0)
-      {
-         int min = *mTime / 60000;
-         int startmin = (min-1) * 60000;
-         mLogger.set("Layer" + Logger::toString((float)mID) + "Min" + Logger::toString((float)(min)));
-
-         std::string s = "";
-         for (size_t i = 0; i < mSpikes.size(); ++i)
-            s += (Logger::toString((float)mSpikes[i].mTime - startmin) + " " + Logger::toString((float)mSpikes[i].mNeuronID) + "\n");
-
-         mSpikes.clear();
-
-         if(s != "")
-            mLogger.write(s);
-      }
+         flushActivity();
 }
+
+void Layer::flushActivity()
+{
+   int min = *mTime / 60000;
+   int startmin = (min-1) * 60000;
+   mLogger.set("Layer" + Logger::toString((float)mID) + "Min" + Logger::toString((float)(min)));
+
+   std::string s = "";
+   for (size_t i = 0; i < mSpikes.size(); ++i)
+      s += (Logger::toString((float)mSpikes[i].mTime - startmin) + " " + Logger::toString((float)mSpikes[i].mNeuronID) + "\n");
+
+   mSpikes.clear();
+
+   if(s != "")
+      mLogger.write(s);
+}
+
 
 void Layer::makeConnection(Layer* source, Layer* dest, float synapseProb, float excitatoryWeight,
       float inhibitoryWeight, int excitatoryDelay, int inhibitoryDelay)
