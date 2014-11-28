@@ -29,6 +29,15 @@ enum ConnectionPatternMode
    CUSTOM_CONNECTION
 };
 
+enum FinishCriterion
+{
+   EPOCH_NUMBER = 0,
+   TIME_MILISECOND,
+   TIME_SECOND,
+   TIME_MINUTE,
+   TIME_HOUR
+};
+
 struct Point2D
 {
    Point2D(unsigned int width, unsigned int height) : mWidth(width), mHeight(height) { }
@@ -94,7 +103,7 @@ public:
    { return Network::getResponseFromLayer(sourceLayer, destLayer, to1D(destLayer, destNeuron)); }
    std::vector<float> getResponseFromSuperLayer(int sourceSuperLayer, int destLayer, Point2D destNeuron);
 
-   void runNetwork(int epochNum) { Network::runNetwork(epochNum*mImageFileNames.size()*100); }
+   void runNetwork(FinishCriterion crit, int critNum);
    static void saveNetwork(VisualNetwork& visNet, std::string path);
    static VisualNetwork* loadNetwork(std::string path);
 
@@ -237,4 +246,5 @@ int VisualNetwork::addReceptiveFieldFromSuperLayer(int sourceSuperLayer, int lay
 
    return sind;
 }
+
 #endif

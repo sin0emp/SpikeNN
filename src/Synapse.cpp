@@ -24,6 +24,7 @@ Synapse::Synapse(Layer* layer, Neuron* pre, Neuron* post, ChannelType type, floa
       delay = (int)std::floor(((float)rand()/RAND_MAX) * (layer->getMaxRandDelay()-layer->getMinRandDelay()) +
          layer->getMinRandDelay() + 0.5);
 
+   initialize();
    mLayer = layer;
    mPreNeuron = pre;
    mPostNeuron = post;
@@ -31,7 +32,6 @@ Synapse::Synapse(Layer* layer, Neuron* pre, Neuron* post, ChannelType type, floa
    mDelay = delay;
    mType = type;
    mID = layer->getNextSynapseID();
-   initialize();
    wakeup();
    mLogger.set(mLayer->getAddress(pre->getLayerID(), pre->getID(), post->getLayerID(), post->getID()));
 }

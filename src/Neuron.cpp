@@ -11,10 +11,10 @@ BOOST_SERIALIZATION_ASSUME_ABSTRACT(Neuron);
 
 Neuron::Neuron(Layer* layer, int ID, ChannelType type)
 {
+   initialize();
    mLayer = layer;
    mType = type;
    mID = ID;
-   initialize();
    wakeup();
    mLogger.set(mLayer->getAddress(mLayer->getID(), mID));
 }

@@ -76,9 +76,9 @@ std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
             RGBApixel pix = image.GetPixel(i, j);
             //TODO: should we pass the image through grayscale and DOG filter here??
             float gray = (float)(0.21*pix.Red + 0.72*pix.Green + 0.07*pix.Blue);
-            if (gray < 200) //a threshold for color strength which leads to an spikes
+            if (gray < 220) //a threshold for color strength which leads to a spikes
             {
-               int timeToAdd = time + (int)(20*(gray/256));
+               int timeToAdd = time + (int)(10*(gray/256));
                while (timeToAdd < time + 100)
                {
                   PixelInputInformation info(Point2D(i,j), timeToAdd);
@@ -96,7 +96,7 @@ std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
                         break;
                   }
 
-                  timeToAdd += 50;
+                  timeToAdd += 200;
                }
             }
          }
@@ -228,6 +228,30 @@ VisualNetwork* VisualNetwork::loadNetwork(std::string path)
 
     file.close();
     return net;
+}
+
+void VisualNetwork::runNetwork(FinishCriterion crit, int critNum)
+{
+   switch (crit)
+   {
+   case EPOCH_NUMBER:
+       Network::runNetwork(critNum*mImageFileNames.size()*100);
+       break;
+   case TIME_MILISECOND:
+       Network::runNetwork(critNum);
+       break;
+   case TIME_SECOND:
+       Network::runNetwork(critNum*1000);
+       break;
+   case TIME_MINUTE:
+       Network::runNetwork(critNum*1000*60);
+       break;
+   case TIME_HOUR:
+       Network::runNetwork(critNum*1000*60*60);
+       break;
+   default:
+      break;
+   }
 }
 
 template <class Archive>

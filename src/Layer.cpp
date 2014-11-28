@@ -10,11 +10,11 @@
 
 Layer::Layer(Network* net, int ID, bool shouldLearn, bool isContainer)
 {
+   initialize();
    mNetwork = net;
    setExcitatoryLearningFlag(shouldLearn); setInhibitoryLearningFlag(shouldLearn);
    setContainerFlag(isContainer);
    mID = ID;
-   initialize();
    wakeup();
 }
 
@@ -23,9 +23,7 @@ void Layer::initialize()
    mTime = 0;
    mInputPatternMode = NO_INPUT;
    mInputPattern = 0;
-   mExLearningFlag = mInLearningFlag = true;
    mLockExLearningFlag = mLockInLearningFlag = false;
-   mContainerFlag = false;
    mLogActivityFlag = false;
    mAP = 0.1f;
    mAN = 0.12f;
@@ -133,10 +131,10 @@ void Layer::update()
 
    if (!mContainerFlag)
    {
-      //call neurons to update in a random order
-      std::vector<std::size_t> order = SHUFFLE(mNeurons.size());
+      //call neurons to update in a random order??
+      //std::vector<std::size_t> order = SHUFFLE(mNeurons.size());
       for (size_t i = 0; i < mNeurons.size(); ++i)
-         mNeurons[order[i]]->update();
+         mNeurons[i]->update();
    }
 
    if (mExShouldLearn || mInShouldLearn)
@@ -157,7 +155,7 @@ void Layer::update()
 
 void Layer::flushActivity()
 {
-   int min = *mTime / 60000;
+   int min = std::ceil((float)(*mTime) / 60000);
    int startmin = (min-1) * 60000;
    mLogger.set("Layer" + Logger::toString((float)mID) + "Min" + Logger::toString((float)(min)));
 

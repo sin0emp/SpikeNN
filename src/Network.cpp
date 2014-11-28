@@ -43,6 +43,9 @@ void Network::initialize()
 
 Network::~Network()
 {
+   for (size_t i=0; i<mLayers.size(); ++i)
+      delete mLayers[i];
+
    if(mDAHandler)
       delete mDAHandler;
 }

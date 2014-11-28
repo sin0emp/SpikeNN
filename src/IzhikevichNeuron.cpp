@@ -37,18 +37,20 @@ void IzhikevichNeuron::setParameters(ParameterContainer params)
 
 float IzhikevichNeuron::updatePotential()
 {
-   if (mV >= 30)
-   {
-      mV = mC;
-      mU += mD;
-      propagateSpike();
-   }
+   mV += mInputCurrent;
 
    //for better approximation, time step is assumed to be 0.5
    //time step = 0.2 => better approximation??
    for (int i=0; i<5; ++i)
    {
-      mV += 0.2f * (mV * (0.04f * mV + 5) + 140 - mU + mInputCurrent);
+      if (mV >= 30)
+      {
+         mV = mC;
+         mU += mD;
+         propagateSpike();
+      }
+
+      mV += 0.2f * (mV * (0.04f * mV + 5) + 140 - mU);
       mU += 0.2f * (mA * (mB * mV - mU));
    }
 
