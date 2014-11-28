@@ -5,13 +5,11 @@ void firstLayer()
 {
    VisualNetwork visNet;
    visNet.setDefaultSTDPParameters(0.99f, 0.002f, 0.002f, 1.0f, 100, 20.0f, 30.0f);
-   visNet.setDefaultBoundingParameters(3, 20, 0.5f, 2.5f, 10, 10, 1, 20);
-   int input = visNet.addLayer<IzhikevichNeuron>(Point2D(144, 144), INPUT_LAYER);
-   visNet.setInputImagesDirectory("C:/Pix/CU3D_2class");
-
+   visNet.setDefaultBoundingParameters(2.0f, 30, 0.5f, 1.5f, 15, 15, 1, 5);
+   int input = visNet.addLayer<IzhikevichNeuron>(Point2D(142, 142), INPUT_LAYER);
+   visNet.setInputImagesDirectory("C:/Pix/filtered 2class/");
    int s1 = visNet.addReceptiveFieldSuperLayer<IzhikevichNeuron>(input, 6, Point2D(10,10), Point2D(4,4), new IzhikevichParameters(0.02, 0.2, -65, 6));
-
-   visNet.runNetwork(200000);
+   visNet.runNetwork(EPOCH_NUMBER, 10);
    VisualNetwork::saveNetwork(visNet, "SL1.sav");
 }
 
@@ -19,9 +17,9 @@ void secondLayer()
 {
    VisualNetwork* visNet = VisualNetwork::loadNetwork("SL1.sav");
    visNet->setLearningLock(true);
-   visNet->setDefaultBoundingParameters(4, 20, 1.5, 3.5, 10, 10, 1, 20);
-   int s2 = visNet->addReceptiveFieldFromSuperLayer<IzhikevichNeuron>(0, 6, Point2D(4, 4), Point2D(2, 2));
-   visNet->runNetwork(200000);
+   visNet->setDefaultBoundingParameters(3.0f, 30, 1.5f, 2.5f, 15, 15, 1, 5);
+   int s2 = visNet->addReceptiveFieldFromSuperLayer<IzhikevichNeuron>(0, 6, Point2D(3, 3), Point2D(2, 2));
+   visNet->runNetwork(EPOCH_NUMBER, 10);
    VisualNetwork::saveNetwork(*visNet, "SL2.sav");
    delete visNet;
 }
@@ -30,9 +28,9 @@ void thirdLayer()
 {
    VisualNetwork* visNet = VisualNetwork::loadNetwork("SL2.sav");
    visNet->setLearningLock(true);
-   visNet->setDefaultBoundingParameters(4, 20, 1.5, 3.5, 10, 10, 1, 20);
+   visNet->setDefaultBoundingParameters(4.0f, 30, 3.0f, 4.0f, 15, 15, 1, 10);
    int s3 = visNet->addReceptiveFieldFromSuperLayer<IzhikevichNeuron>(1, 6, Point2D(4, 4), Point2D(2, 2));
-   visNet->runNetwork(200000);
+   visNet->runNetwork(EPOCH_NUMBER, 10);
    VisualNetwork::saveNetwork(*visNet, "SL3.sav");
    delete visNet;
 }
@@ -41,9 +39,9 @@ void fourthLayer()
 {
    VisualNetwork* visNet = VisualNetwork::loadNetwork("SL3.sav");
    visNet->setLearningLock(true);
-   visNet->setDefaultBoundingParameters(4, 20, 2, 4, 10, 10, 1, 20);
+   visNet->setDefaultBoundingParameters(4.0, 30, 3.0f, 4.0f, 15, 15, 1, 10);
    int s3 = visNet->addReceptiveFieldFromSuperLayer<IzhikevichNeuron>(2, 6, Point2D(5, 5), Point2D(2, 2));
-   visNet->runNetwork(200000);
+   visNet->runNetwork(EPOCH_NUMBER, 10);
    VisualNetwork::saveNetwork(*visNet, "SL4.sav");
    delete visNet;
 }
@@ -81,14 +79,17 @@ void test()
    visNet->logLayerActivity(23);
    visNet->logLayerActivity(24);
 
-   visNet->runNetwork(60000);
+   visNet->runNetwork(EPOCH_NUMBER, 1);
    delete visNet;
 }
 
 int main()
 {
-   _setmaxstdio(2000);
+   //firstLayer();
+   //secondLayer();
+   //thirdLayer();
+   fourthLayer();
    test();
-
+   
    return 0;
 }

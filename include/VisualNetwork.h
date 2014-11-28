@@ -214,8 +214,8 @@ int VisualNetwork::addReceptiveFieldSuperLayer(int sourceLayer, int layersNumToA
          {
             mSourceLayer = mSuperLayersContent[sindex][i];
             mDestLayer = mSuperLayersContent[sindex][j];
-            mLateralWeight = -1;
-            mLateralDelay = 1;
+            mLateralWeight = CHOOSE_RANDOM;
+            mLateralDelay = 0;
             Network::makeConnection(mSourceLayer, mDestLayer);
          }
       }
