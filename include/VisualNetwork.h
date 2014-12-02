@@ -72,30 +72,32 @@ public:
       ChannelType neuronType = EXCITATORY, ParameterContainer* neuronParams = 0);
 
    template <class NeuronTemp>
-   int addReceptiveFieldLayer(int sourceLayer, Point2D receptiveFieldSize, Point2D fieldStep,
-      ParameterContainer* neuronParams = 0);
-
-   template <class NeuronTemp>
    int addLateralLayer(int sourceLayer, LayerType layerType = LEARNING_MID_LAYER,
       ChannelType neuronType = EXCITATORY, float weight = -1, int delay = -1, ParameterContainer* neuronParams = 0);
 
    template <class NeuronTemp>
-   int addReceptiveFieldSuperLayer(int sourceLayer, int layersNumToAdd, Point2D receptiveFieldSize,
+   int addSimpleCellSuperLayer(int sourceLayer, int layersNumToAdd, Point2D receptiveFieldSize,
       Point2D fieldStep, ParameterContainer* neuronParams = 0);
 
    template <class NeuronTemp>
-   int addReceptiveFieldFromSuperLayer(int sourceSuperLayer, int layersNumToAdd, Point2D receptiveFieldSize,
+   int addSimpleCellFromSuperLayer(int sourceSuperLayer, int layersNumToAdd, Point2D receptiveFieldSize,
          Point2D fieldStep, ParameterContainer* neuronParams = 0);
+
+   template <class NeuronTemp>
+   int addComplexCellFromSuperLayer(int sourceSuperLayer, Point2D receptiveFieldSize,
+      Point2D fieldStep, ParameterContainer* neuronParams = 0);
 
    void makeConnection(int sourceLayer, int destLayer, ConnectionInfo (*pattern)(Point2D, Point2D));
 
-   void setInputImagesDirectory(std::string dirName);
+   void setInputImagesDirectory(std::string dirName, int presentTimeStep = 40);
 
    //TODO: void logSettings(); 
    void logPostSynapseWeights(int layer, Point2D neuron, std::string directory = "")
    { Network::logPostSynapseWeights(layer, to1D(layer, neuron), directory); }
    void logPreSynapseWeights(int layer, Point2D neuron, std::string directory = "") 
    { Network::logPreSynapseWeights(layer, to1D(layer, neuron), directory); }
+   void logSuperLayerActivity(int superLayerID)
+   { for(size_t i = 0; i < mSuperLayersContent[superLayerID].size(); ++i) logLayerActivity(mSuperLayersContent[superLayerID][i]); }
    //TODO: void logSynapseWeight(bool (*pattern)(int, int, int, int));
    //TODO: void logSynapseWeight(bool (*pattern)(int));
 
@@ -119,6 +121,7 @@ private:
    size_t                              mCurrentImageIndex;
    std::vector<PixelInputInformation>  mInputInfos;
    std::vector<std::vector<int> >      mSuperLayersContent;
+   int                                 mPresentTimeStep;
 
    //parameters for making connection which is used in defaultConnectingPattern
    Point2D mReceptiveFieldSize;
@@ -137,6 +140,11 @@ private:
    int to1D(int layerIndex, Point2D neuronIndex)
    { return (neuronIndex.mHeight * mLayersSizeInfo[layerIndex].mWidth) + neuronIndex.mWidth; }
 
+   template <class NeuronTemp>
+   int addReceptiveFieldLayer(int sourceLayer, Point2D receptiveFieldSize, Point2D fieldStep, LayerType type,
+      ParameterContainer* neuronParams = 0);
+
+   void initialize();
    template <class Archive>
    void serialize(Archive &ar, const unsigned int version);
 };
@@ -165,7 +173,7 @@ int VisualNetwork::addLayer(Point2D size, LayerType layerType,
 
 template <class NeuronTemp>
 int VisualNetwork::addReceptiveFieldLayer(int sourceLayer, Point2D receptiveFieldSize,
-                                          Point2D fieldStep, ParameterContainer* neuronParams)
+                                          Point2D fieldStep, LayerType type, ParameterContainer* neuronParams)
 {
    mReceptiveFieldSize = receptiveFieldSize;
    mFieldStep = fieldStep;
@@ -173,7 +181,7 @@ int VisualNetwork::addReceptiveFieldLayer(int sourceLayer, Point2D receptiveFiel
    mConnectionPatternMode = RECEPTIVE_FIELD_CONNECTION;
    Point2D size ((mLayersSizeInfo[sourceLayer].mWidth - mReceptiveFieldSize.mWidth)/fieldStep.mWidth + 1,
                  (mLayersSizeInfo[sourceLayer].mHeight - mReceptiveFieldSize.mHeight)/fieldStep.mHeight + 1);
-   mDestLayer = addLayer<NeuronTemp>(size, LEARNING_MID_LAYER, EXCITATORY);
+   mDestLayer = addLayer<NeuronTemp>(size, type, EXCITATORY);
    Network::makeConnection(mSourceLayer, mDestLayer);
 
    return mDestLayer;
@@ -193,17 +201,15 @@ int VisualNetwork::addLateralLayer(int sourceLayer, LayerType layerType, Channel
 }
 
 template <class NeuronTemp>
-int VisualNetwork::addReceptiveFieldSuperLayer(int sourceLayer, int layersNumToAdd, Point2D receptiveFieldSize,
+int VisualNetwork::addSimpleCellSuperLayer(int sourceLayer, int layersNumToAdd, Point2D receptiveFieldSize,
       Point2D fieldStep, ParameterContainer* neuronParams)
 {
    mSuperLayersContent.push_back(std::vector<int>());
    size_t sindex = mSuperLayersContent.size()-1;
 
    for (size_t i = 0; i < layersNumToAdd; ++i)
-   {
       mSuperLayersContent[sindex].push_back(addReceptiveFieldLayer<NeuronTemp>(
-         sourceLayer, receptiveFieldSize, fieldStep, neuronParams));
-   }
+         sourceLayer, receptiveFieldSize, fieldStep, LEARNING_MID_LAYER, neuronParams));
 
    mConnectionPatternMode = LATERAL_CONNECTION;
    for (size_t i = 0; i < layersNumToAdd; ++i)
@@ -225,10 +231,10 @@ int VisualNetwork::addReceptiveFieldSuperLayer(int sourceLayer, int layersNumToA
 }
 
 template <class NeuronTemp>
-int VisualNetwork::addReceptiveFieldFromSuperLayer(int sourceSuperLayer, int layersNumToAdd, Point2D receptiveFieldSize,
+int VisualNetwork::addSimpleCellFromSuperLayer(int sourceSuperLayer, int layersNumToAdd, Point2D receptiveFieldSize,
       Point2D fieldStep, ParameterContainer* neuronParams)
 {
-   int sind = addReceptiveFieldSuperLayer<NeuronTemp>(mSuperLayersContent[sourceSuperLayer][0], layersNumToAdd,
+   int sind = addSimpleCellSuperLayer<NeuronTemp>(mSuperLayersContent[sourceSuperLayer][0], layersNumToAdd,
       receptiveFieldSize, fieldStep, neuronParams);
 
    mConnectionPatternMode = RECEPTIVE_FIELD_CONNECTION;
@@ -245,6 +251,20 @@ int VisualNetwork::addReceptiveFieldFromSuperLayer(int sourceSuperLayer, int lay
    }
 
    return sind;
+}
+
+template <class NeuronTemp>
+int VisualNetwork::addComplexCellFromSuperLayer(int sourceSuperLayer, Point2D receptiveFieldSize,
+      Point2D fieldStep, ParameterContainer* neuronParams)
+{
+   mSuperLayersContent.push_back(std::vector<int>());
+   size_t sindex = mSuperLayersContent.size()-1;
+
+   for (size_t i = 0; i < mSuperLayersContent[sourceSuperLayer].size(); ++i)
+      mSuperLayersContent[sindex].push_back(addReceptiveFieldLayer<NeuronTemp>(
+         mSuperLayersContent[sourceSuperLayer][i], receptiveFieldSize, fieldStep, NONLEARNING_MID_LAYER, neuronParams));
+
+   return sindex;
 }
 
 #endif

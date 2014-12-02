@@ -12,8 +12,14 @@ BOOST_CLASS_EXPORT(VisualNetwork);
 
 VisualNetwork::VisualNetwork()
 {
+   initialize();
+}
+
+void VisualNetwork::initialize()
+{
    mCustomConnectionPattern = 0;
    mCurrentImageIndex = -1;
+   mPresentTimeStep = 40;
 }
 
 ConnectionInfo VisualNetwork::defaultConnectingPattern(int sourceIndex, int destIndex)
@@ -54,7 +60,7 @@ ConnectionInfo VisualNetwork::defaultConnectingPattern(int sourceIndex, int dest
 
 std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
 {
-   if (time % 100 == 1)
+   if (time % mPresentTimeStep == 1)
    {
       for (size_t i = 0; i < mLayers.size(); ++i)
          mLayers[i]->restNeurons();
@@ -79,7 +85,7 @@ std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
             if (gray < 220) //a threshold for color strength which leads to a spikes
             {
                int timeToAdd = time + (int)(10*(gray/256));
-               while (timeToAdd < time + 100)
+               while (timeToAdd < time + mPresentTimeStep)
                {
                   PixelInputInformation info(Point2D(i,j), timeToAdd);
                   mInputInfos.push_back(info);
@@ -124,8 +130,9 @@ void VisualNetwork::makeConnection(int sourceLayer, int destLayer, ConnectionInf
    Network::makeConnection(sourceLayer, destLayer);
 }
 
-void VisualNetwork::setInputImagesDirectory(std::string dirName)
+void VisualNetwork::setInputImagesDirectory(std::string dirName, int presentTimeStep)
 {
+   mPresentTimeStep = presentTimeStep;
    boost::filesystem::path dirPath(dirName);
    boost::filesystem::directory_iterator end_iter;
 
@@ -235,7 +242,7 @@ void VisualNetwork::runNetwork(FinishCriterion crit, int critNum)
    switch (crit)
    {
    case EPOCH_NUMBER:
-       Network::runNetwork(critNum*mImageFileNames.size()*100);
+       Network::runNetwork(critNum*mImageFileNames.size()*mPresentTimeStep);
        break;
    case TIME_MILISECOND:
        Network::runNetwork(critNum);
