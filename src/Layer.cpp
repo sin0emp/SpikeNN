@@ -42,6 +42,8 @@ void Layer::initialize()
    mMinRandDelay = 0;
    mMinInputCurrent = 0;
    mMaxInputCurrent = 20;
+   mSharedConnectionFlag = false;
+   mSharedConnectionTimeStep = -1;
 }
 
 void Layer::wakeup()
@@ -51,9 +53,6 @@ void Layer::wakeup()
 
    for (size_t i = 0; i < mNeurons.size(); ++i)
       mNeurons[i]->wakeup();
-
-   for (size_t i = 0; i < mSynapses.size(); ++i)
-      mSynapses[i]->wakeup();
 }
 
 Layer::~Layer()
@@ -63,6 +62,9 @@ Layer::~Layer()
    
    for (std::size_t i = 0; i < mNeurons.size(); ++i) 
       delete mNeurons[i];
+
+   for (std::size_t i = 0; i < mSharedConnections.size(); ++i) 
+      delete mSharedConnections[i];
 }
 
 void Layer::update()
@@ -137,6 +139,46 @@ void Layer::update()
          mNeurons[i]->update();
    }
 
+   if (mSharedConnectionFlag)
+      if (*mTime % mSharedConnectionTimeStep == 0 && mCChangeRequests.size() > 0)
+      {
+         //TODO: it's a mess here!
+
+         //calculate which neurons had the most activity
+         int maxNeuron = -1;
+         int maxResponse = 0;
+         int minSumRec = 1000000;
+
+         for (size_t i=0; i<mCChangeRequests.size(); ++i)
+         {
+            size_t j = i;
+            int sumRec = 0;
+            while (mCChangeRequests[j].mNeuronID == mCChangeRequests[i].mNeuronID)
+            {
+               sumRec += std::abs(mCChangeRequests[j].mDt);
+               ++j;
+               if (j == mCChangeRequests.size())
+                  break;
+            }
+
+            if (maxNeuron == -1 || (j-i-1 > maxResponse && sumRec < minSumRec))
+            {
+               maxNeuron = i;
+               maxResponse = j-i-1;
+               minSumRec = sumRec;
+            }
+
+            i = j-1;
+         }
+         
+         //apply its request
+         for (size_t i=maxNeuron; i<mCChangeRequests.size() && 
+            mCChangeRequests[i].mNeuronID == mCChangeRequests[maxNeuron].mNeuronID; ++i)
+            mCChangeRequests[i].mSynapse->stepIncreaseSTDP(mCChangeRequests[i].mDt);
+
+         mCChangeRequests.clear();
+      }
+
    if (mExShouldLearn || mInShouldLearn)
       if (*mTime % mSTDPTimeStep == 0)
       {
@@ -145,6 +187,13 @@ void Layer::update()
             if((mSynapses[i]->getType() == EXCITATORY && mExShouldLearn) ||
                (mSynapses[i]->getType() == INHIBITORY && mInShouldLearn))
                mSynapses[i]->updateWeight();
+         }
+
+         for (size_t i = 0; i < mSharedConnections.size(); ++i)
+         {
+            if((mSharedConnections[i]->getType() == EXCITATORY && mExShouldLearn) ||
+               (mSharedConnections[i]->getType() == INHIBITORY && mInShouldLearn))
+               mSharedConnections[i]->updateWeight();
          }
       }
 
@@ -184,14 +233,14 @@ void Layer::makeConnection(Layer* source, Layer* dest, float synapseProb, float 
             if (source->mNeurons[i]->getType() == EXCITATORY)
             {
                Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], excitatoryWeight, excitatoryDelay);
-               dest->mSynapses.push_back(syn);
+               dest->mSynapses.push_back(syn->getBase());
                //if (source != dest)
                //   dest->mSynapses.push_back(syn);
             }
             else
             {
                Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], inhibitoryWeight, inhibitoryDelay);
-               dest->mSynapses.push_back(syn);
+               dest->mSynapses.push_back(syn->getBase());
                //if (source != dest)
                //   dest->mSynapses.push_back(syn);
             }
@@ -220,14 +269,14 @@ void Layer::makeConnection(Layer* source, Layer* dest,
          if (source->mNeurons[i]->getType() == EXCITATORY)
          {
             Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[k], excitatoryWeight, excitatoryDelay);
-            dest->mSynapses.push_back(syn);
+            dest->mSynapses.push_back(syn->getBase());
             //if (source != dest)
             //   dest->mSynapses.push_back(syn);
          }
          else
          {
             Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[k], inhibitoryWeight, inhibitoryDelay);
-            dest->mSynapses.push_back(syn);
+            dest->mSynapses.push_back(syn->getBase());
             //if (source != dest)
             //   dest->mSynapses.push_back(syn);
          }
@@ -244,7 +293,7 @@ void Layer::makeConnection(Layer* source, Layer* dest, ConnectionInfo (*pattern)
          if (info.mConnectFlag)
          {
             Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay, info.mType);
-            dest->mSynapses.push_back(syn);
+            dest->mSynapses.push_back(syn->getBase());
 
             //is it right??
             //if (source != dest)
@@ -253,21 +302,21 @@ void Layer::makeConnection(Layer* source, Layer* dest, ConnectionInfo (*pattern)
       }
 }
 
-void Layer::logWeight(bool (*pattern)(int))
-{
-   for (size_t i = 0; i < mSynapses.size(); ++i)
-   {
-      mSynapses[i]->logWeight(pattern);
-   }
-}
-
-void Layer::logWeight(bool (*pattern)(int, int, int, int))
-{
-   for (size_t i = 0; i < mSynapses.size(); ++i)
-   {
-      mSynapses[i]->logWeight(pattern);
-   }
-}
+//void Layer::logWeight(bool (*pattern)(int))
+//{
+//   for (size_t i = 0; i < mSynapses.size(); ++i)
+//   {
+//      mSynapses[i]->logWeight(pattern);
+//   }
+//}
+//
+//void Layer::logWeight(bool (*pattern)(int, int, int, int))
+//{
+//   for (size_t i = 0; i < mSynapses.size(); ++i)
+//   {
+//      mSynapses[i]->logWeight(pattern);
+//   }
+//}
 
 void Layer::logPotential(bool (*pattern)(int))
 {
@@ -281,24 +330,24 @@ void Layer::logPotential(bool (*pattern)(int))
    }
 }
 
-void Layer::logPostSynapseWeight(int neuron, std::string directory)
-{
-   mNeurons[neuron]->logPostSynapseWeight(directory);
-}
+//void Layer::logPostSynapseWeight(int neuron, std::string directory)
+//{
+//   mNeurons[neuron]->logPostSynapseWeight(directory);
+//}
+//
+//void Layer::logPreSynapseWeight(int neuron, std::string directory)
+//{
+//   mNeurons[neuron]->logPreSynapseWeight(directory);
+//}
 
-void Layer::logPreSynapseWeight(int neuron, std::string directory)
-{
-   mNeurons[neuron]->logPreSynapseWeight(directory);
-}
-
-std::vector<int> Layer::getWeightFrequencies()
-{
-   std::vector<int> freq ((unsigned int)(mExMaxWeight / 0.2)+1, 0);
-   for (size_t i = 0; i < mSynapses.size(); ++i)
-      freq[(unsigned int)(mSynapses[i]->getWeight() / 0.2)]++;
-
-   return freq;
-}
+//std::vector<int> Layer::getWeightFrequencies()
+//{
+//   std::vector<int> freq ((unsigned int)(mExMaxWeight / 0.2)+1, 0);
+//   for (size_t i = 0; i < mSynapses.size(); ++i)
+//      freq[(unsigned int)(mSynapses[i]->getWeight() / 0.2)]++;
+//
+//   return freq;
+//}
 
 void Layer::recordSpike(int NeuronID)
 {
@@ -344,6 +393,43 @@ std::string Layer::getAddress(int slayer, int sneuron, int dlayer, int dneuron)
    return mNetwork->getAddress(slayer, sneuron, dlayer, dneuron);
 }
 
+void Layer::shareConnection(size_t sourceNeuron, int sharingTimeStep)
+{
+   std::vector<SynapseBase*> bases = mNeurons[sourceNeuron]->getPreSynapsesToShare();
+
+   for (size_t i=0; i<mNeurons.size(); ++i)
+      if (i != sourceNeuron)
+         mNeurons[i]->setPreSynapsesToShare(bases);
+
+   mSharedConnectionFlag = true;
+   mSharedConnections = bases;
+   mSharedConnectionTimeStep = sharingTimeStep;
+   mSynapses.clear();
+}
+
+void Layer::shareConnection(std::vector<SynapseBase*> bases, int sharingTimeStep)
+{
+   for (size_t i=0; i<mNeurons.size(); ++i)
+         mNeurons[i]->setPreSynapsesToShare(bases);
+
+   mSharedConnectionFlag = true;
+   mSharedConnections = bases;
+   mSharedConnectionTimeStep = sharingTimeStep;
+   mSynapses.clear();
+}
+
+void Layer::giveChangeRequest(STDPchangeRequest request)
+{
+   //record the request and also sort the list using insertion sort
+   mCChangeRequests.push_back(request);
+   size_t i = mCChangeRequests.size()-1;
+   for (; i>=0; --i)
+      if (mCChangeRequests[i].mNeuronID == request.mNeuronID)
+         break;
+
+   mCChangeRequests.insert(mCChangeRequests.begin() + (i + 1), request);
+}
+
 template <class Archive>
 void Layer::serialize(Archive &ar, const unsigned int version)
 {
@@ -360,7 +446,7 @@ void Layer::serialize(Archive &ar, const unsigned int version)
       & mInMaxWeight & mInMaxRandWeight
       & mInMinRandWeight & mMaxRandDelay
       & mMinRandDelay & mMinInputCurrent
-      & mMaxInputCurrent;
+      & mMaxInputCurrent & mSharedConnectionFlag;
 }
 
 template void Layer::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);

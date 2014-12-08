@@ -6,6 +6,46 @@
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
 
+SynapseBase::SynapseBase(Layer* layer, float weight, int delay, ChannelType type)
+{
+   initialize();
+   mLayer = layer;
+   mWeight = weight;
+   mDelay = delay;
+   mType = type;
+}
+
+void SynapseBase::initialize()
+{
+	mC = 0;
+}
+
+void SynapseBase::stepIncreaseSTDP(int dt)
+{
+   if ((mType == EXCITATORY && mLayer->shouldExcitatoryLearn())||
+       (mType == INHIBITORY && mLayer->shouldInhibitoryLearn()))
+   {
+      int t = dt-mDelay;
+      if(t >= 0)
+         mC += (mLayer->getAP() * std::exp(-t / mLayer->getTaoP()));
+      else
+         mC -= (mLayer->getAN() * std::exp(t / mLayer->getTaoN()));
+   }
+}
+
+void SynapseBase::updateWeight()
+{
+   float d = mLayer->getDAConcentraion();
+   //mWeight += (d == -1) ? (0.01f + mC) : mC * (0.002f + d);  //this is izhikevich version but why add constants???
+   mWeight += (d == -1) ? mC : mC * d;
+   float maxWeight = (mType == EXCITATORY) ? 
+      mLayer->getExcitatoryMaxWeight() : mLayer->getInhibitoryMaxWeight();
+   if (mWeight > maxWeight) mWeight = maxWeight;
+   if (mWeight < 0) mWeight = 0;
+   mC *= mLayer->getCMultiplier();
+   mWeight *= mLayer->getDecayMultiplier();
+}
+
 Synapse::Synapse(Layer* layer, Neuron* pre, Neuron* post, ChannelType type, float weight, int delay)
 {
    //srand((int)time(0));
@@ -25,97 +65,86 @@ Synapse::Synapse(Layer* layer, Neuron* pre, Neuron* post, ChannelType type, floa
          layer->getMinRandDelay() + 0.5);
 
    initialize();
-   mLayer = layer;
    mPreNeuron = pre;
    mPostNeuron = post;
-   mWeight = weight;
-   mDelay = delay;
-   mType = type;
+   mBase = new SynapseBase(layer, weight, delay, type);
    mID = layer->getNextSynapseID();
    wakeup();
-   mLogger.set(mLayer->getAddress(pre->getLayerID(), pre->getID(), post->getLayerID(), post->getID()));
+   mLogger.set(mBase->mLayer->getAddress(pre->getLayerID(), pre->getID(), post->getLayerID(), post->getID()));
+}
+
+Synapse::~Synapse()
+{
+   if (!mBase->mLayer->getSharedConnectionFlag())
+      delete mBase;
 }
 
 void Synapse::wakeup()
 {
-   mTime = mLayer->getPointerToTime();
+   mTime = mBase->mLayer->getPointerToTime();
 }
 
 void Synapse::initialize()
 {
    mLogWeightFlag = false;
-   mLastPostSpikeTime = mLastPreSpikeTime = -1000;
-   mC = 0;
+   mLastPostSpikeTime = mLastPreSpikeTime = -1000;  
 }
 
 void Synapse::addSpike()
 {
    mLastPreSpikeTime = *mTime;
 
-   if (mType == EXCITATORY)
-      mPostNeuron->addInputCurrent(mLastPreSpikeTime + mDelay, mWeight);
-   else if (mType == INHIBITORY)
-      mPostNeuron->addInputCurrent(mLastPreSpikeTime + mDelay, -mWeight);
-   else if (mType == RESET)
+   if (mBase->mType == EXCITATORY)
+      mPostNeuron->addInputCurrent(mLastPreSpikeTime + mBase->mDelay, mBase->mWeight);
+   else if (mBase->mType == INHIBITORY)
+      mPostNeuron->addInputCurrent(mLastPreSpikeTime + mBase->mDelay, -mBase->mWeight);
+   else if (mBase->mType == RESET)
       mPostNeuron->rest(); //should delay be takan into account?
 
-   if ((mType == EXCITATORY && mLayer->shouldExcitatoryLearn())||
-       (mType == INHIBITORY && mLayer->shouldInhibitoryLearn())) stepIncreaseSTDP();
+
+   //TODO: don't give request when learning is turned off!
+   if (!mBase->mLayer->getSharedConnectionFlag())
+      mBase->stepIncreaseSTDP(mLastPostSpikeTime - mLastPreSpikeTime);
+   else if (mLastPostSpikeTime > 0)
+   {
+      STDPchangeRequest req = {mPostNeuron->getID(), mLastPostSpikeTime - mLastPreSpikeTime, mBase};
+      mBase->mLayer->giveChangeRequest(req);
+   }
    //mLastPostSpikeTime = -1000;
 }
 
 void Synapse::setPostSpikeTime()
 {
    mLastPostSpikeTime = *mTime;
-   if ((mType == EXCITATORY && mLayer->shouldExcitatoryLearn())||
-       (mType == INHIBITORY && mLayer->shouldInhibitoryLearn())) stepIncreaseSTDP();
+
+   if (!mBase->mLayer->getSharedConnectionFlag())
+      mBase->stepIncreaseSTDP(mLastPostSpikeTime - mLastPreSpikeTime);
+   else if (mLastPreSpikeTime > 0)
+   {
+      STDPchangeRequest req = {mPostNeuron->getID(), mLastPostSpikeTime - mLastPreSpikeTime, mBase};
+      mBase->mLayer->giveChangeRequest(req);
+   }
    //mLastPreSpikeTime = -1000;
 }
 
-void Synapse::stepIncreaseSTDP()
-{
-   int t = mLastPostSpikeTime - mLastPreSpikeTime - mDelay;
-   if(t >= 0)
-      mC += (mLayer->getAP() * std::exp(-t / mLayer->getTaoP()));
-   else
-      mC -= (mLayer->getAN() * std::exp(t / mLayer->getTaoN()));
-}
+//void Synapse::addWeightLog(std::string directory)
+//{
+//   mLogWeightFlag = true;
+//   mLogger.set(mBase->mLayer->getAddress(mPreNeuron->getLayerID(), mPreNeuron->getID(), mPostNeuron->getLayerID(),
+//      mPostNeuron->getID()), directory);
+//}
 
-void Synapse::updateWeight()
-{
-   float d = mLayer->getDAConcentraion();
-   //mWeight += (d == -1) ? (0.01f + mC) : mC * (0.002f + d);  //this is izhikevich version but why add constants???
-   mWeight += (d == -1) ? mC : mC * d;
-   float maxWeight = (mType == EXCITATORY) ? 
-      mLayer->getExcitatoryMaxWeight() : mLayer->getInhibitoryMaxWeight();
-   if (mWeight > maxWeight) mWeight = maxWeight;
-   if (mWeight < 0) mWeight = 0;
-   mC *= mLayer->getCMultiplier();
-   mWeight *= mLayer->getDecayMultiplier();
-
-   if (*mTime % 1000 == 0 && mLogWeightFlag)
-      mLogger.writeLine(Logger::toString((float)*mTime) + " " + Logger::toString(mWeight));
-
-}
-
-void Synapse::addWeightLog(std::string directory)
-{
-   mLogWeightFlag = true;
-   mLogger.set(mLayer->getAddress(mPreNeuron->getLayerID(), mPreNeuron->getID(), mPostNeuron->getLayerID(),
-      mPostNeuron->getID()), directory);
-}
-
-void Synapse::logWeight(bool (*pattern)(int))
-{
-   if ((*pattern)(mID))
-      mLogWeightFlag = true;
-}
-
-void Synapse::logWeight(bool (*pattern)(int, int, int, int))
-{
-   if ((*pattern)(mPreNeuron->getLayerID(), mPreNeuron->getID(), mPostNeuron->getLayerID(), mPostNeuron->getID()))
-      mLogWeightFlag = true;
-}
+//void Synapse::logWeight(bool (*pattern)(int))
+//{
+//   if ((*pattern)(mID))
+//      mLogWeightFlag = true;
+//}
+//
+//void Synapse::logWeight(bool (*pattern)(int, int, int, int))
+//{
+//   if ((*pattern)(mPreNeuron->getLayerID(), mPreNeuron->getID(), mPostNeuron->getLayerID(), mPostNeuron->getID()))
+//      mLogWeightFlag = true;
+//}
 
 bool Synapse::isFromLayer(int layerIndex) 
 {
@@ -125,10 +154,18 @@ bool Synapse::isFromLayer(int layerIndex)
 template <class Archive>
 void Synapse::serialize(Archive &ar, const unsigned int version)
 {
-   ar & mLayer & mID & mPreNeuron
-      & mPostNeuron & mWeight & mDelay
+   ar & mID & mPreNeuron
+      & mPostNeuron & mBase;
+}
+
+template <class Archive>
+void SynapseBase::serialize(Archive &ar, const unsigned int version)
+{
+   ar & mLayer & mWeight & mDelay
       & mType;
 }
 
 template void Synapse::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);
 template void Synapse::serialize<boost::archive::text_iarchive>(boost::archive::text_iarchive &ar, const unsigned int version);
+template void SynapseBase::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);
+template void SynapseBase::serialize<boost::archive::text_iarchive>(boost::archive::text_iarchive &ar, const unsigned int version);

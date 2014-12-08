@@ -128,31 +128,31 @@ void Network::logSettings()
    mLogSettingsFlag = true;
 }
 
-void Network::logPostSynapseWeights(int layer, int neuron, std::string directory)
-{
-   mLayers[layer]->logPostSynapseWeight(neuron, directory);
-}
-
-void Network::logPreSynapseWeights(int layer, int neuron, std::string directory)
-{
-   mLayers[layer]->logPreSynapseWeight(neuron, directory);
-}
-
-void Network::logSynapseWeight(bool (*pattern)(int, int, int, int))
-{
-   for (size_t i = 0; i < mLayers.size(); ++i)
-   {
-      mLayers[i]->logWeight(pattern);
-   }
-}
-
-void Network::logSynapseWeight(bool (*pattern)(int))
-{
-   for (size_t i = 0; i < mLayers.size(); ++i)
-   {
-      mLayers[i]->logWeight(pattern);
-   }
-}
+//void Network::logPostSynapseWeights(int layer, int neuron, std::string directory)
+//{
+//   mLayers[layer]->logPostSynapseWeight(neuron, directory);
+//}
+//
+//void Network::logPreSynapseWeights(int layer, int neuron, std::string directory)
+//{
+//   mLayers[layer]->logPreSynapseWeight(neuron, directory);
+//}
+//
+//void Network::logSynapseWeight(bool (*pattern)(int, int, int, int))
+//{
+//   for (size_t i = 0; i < mLayers.size(); ++i)
+//   {
+//      mLayers[i]->logWeight(pattern);
+//   }
+//}
+//
+//void Network::logSynapseWeight(bool (*pattern)(int))
+//{
+//   for (size_t i = 0; i < mLayers.size(); ++i)
+//   {
+//      mLayers[i]->logWeight(pattern);
+//   }
+//}
 
 ConnectionInfo Network::defaultConnectingPattern(int sourceIndex, int destIndex)
 {

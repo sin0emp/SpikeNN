@@ -23,6 +23,8 @@ void Neuron::wakeup()
 {
    mTime = mLayer->getPointerToTime();
    rest();
+   for (size_t i = 0; i < mPreSynapses.size(); ++i)
+      mPreSynapses[i]->wakeup();
 }
 
 void Neuron::initialize()
@@ -35,8 +37,8 @@ void Neuron::initialize()
 
 Neuron::~Neuron()
 {
-   for (std::size_t i = 0; i < mPostSynapses.size(); ++i)
-      delete mPostSynapses[i];
+   for (std::size_t i = 0; i < mPreSynapses.size(); ++i)
+      delete mPreSynapses[i];
 }
 
 void Neuron::propagateSpike()
@@ -127,16 +129,33 @@ void Neuron::logPotential()
    mLogPotentialFlag = true;
 }
 
-void Neuron::logPostSynapseWeight(std::string directory)
+//void Neuron::logPostSynapseWeight(std::string directory)
+//{
+//   for(size_t i = 0; i < mPostSynapses.size(); ++i)
+//      mPostSynapses[i]->addWeightLog(directory);
+//}
+//
+//void Neuron::logPreSynapseWeight(std::string directory)
+//{
+//   for(size_t i = 0; i < mPreSynapses.size(); ++i)
+//      mPreSynapses[i]->addWeightLog(directory);
+//}
+
+std::vector<SynapseBase*> Neuron::getPreSynapsesToShare()
 {
-   for(size_t i = 0; i < mPostSynapses.size(); ++i)
-      mPostSynapses[i]->addWeightLog(directory);
+   std::vector<SynapseBase*> bases;
+   for (size_t i=0; i<mPreSynapses.size(); ++i)
+      bases.push_back(mPreSynapses[i]->mBase);
+   return bases;
 }
 
-void Neuron::logPreSynapseWeight(std::string directory)
+void Neuron::setPreSynapsesToShare(std::vector<SynapseBase*> bases)
 {
-   for(size_t i = 0; i < mPreSynapses.size(); ++i)
-      mPreSynapses[i]->addWeightLog(directory);
+   for (size_t i=0; i<mPreSynapses.size(); ++i)
+   {
+      delete mPreSynapses[i]->mBase;
+      mPreSynapses[i]->mBase = bases[i];
+   }
 }
 
 int Neuron::getLayerID()
@@ -158,6 +177,9 @@ void Neuron::rest()
 {
    mInputCurrent = 0;
    mSpikeTimes.clear();
+
+   //for(size_t i=0; i<mPreSynapses.size(); ++i)
+   //      mPreSynapses[i]->rest();
 }
 
 template <class Archive>

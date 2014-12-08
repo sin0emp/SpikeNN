@@ -65,6 +65,11 @@ public:
       Layer::makeConnection(mLayers[sourceLayerIndex], mLayers[destLayerIndex], pattern);
    }
 
+   void shareConnection(int layer, size_t sourceNeuron=0, int sharingTimeStep=40) 
+   { mLayers[layer]->shareConnection(sourceNeuron, sharingTimeStep); }
+   void shareConnection(int layer, std::vector<SynapseBase*> bases, int sharingTimeStep=40)
+   { mLayers[layer]->shareConnection(bases, sharingTimeStep); }
+
    //Network control methods
    int  getTime() { return mTime; }
    const int* getPointerToTime() { return &mTime; }
@@ -74,10 +79,10 @@ public:
    void runNetwork(int maxTime);
    void logLayerActivity(int layer);
    void logSettings();
-   void logPostSynapseWeights(int layer, int neuron, std::string directory = "");
-   void logPreSynapseWeights(int layer, int neuron, std::string directory = "");
-   void logSynapseWeight(bool (*pattern)(int, int, int, int));
-   void logSynapseWeight(bool (*pattern)(int));
+   //void logPostSynapseWeights(int layer, int neuron, std::string directory = "");
+   //void logPreSynapseWeights(int layer, int neuron, std::string directory = "");
+   //void logSynapseWeight(bool (*pattern)(int, int, int, int));
+   //void logSynapseWeight(bool (*pattern)(int));
    void logPotential(int layer, bool (*pattern)(int) = 0) { mLayers[layer]->logPotential(pattern); }
 
    void setInputPattern(int layerIndex, InputPatternMode mode, std::vector<InputInformation> (*pattern)(int) = 0)

@@ -25,6 +25,7 @@ struct CurrentInfo;
 class MODULE_EXPORT Neuron
 {
    friend class boost::serialization::access;
+   friend class DAHandler;
 public:
    Neuron(Layer* layer, int ID, ChannelType type = EXCITATORY);
    ~Neuron();
@@ -43,8 +44,12 @@ public:
    void logPotential();
    std::string getSpikeTimes();
 
-   void logPostSynapseWeight(std::string directory = "");
-   void logPreSynapseWeight(std::string directory = "");
+   std::vector<SynapseBase*> getPreSynapsesToShare();
+   void setPreSynapsesToShare(std::vector<SynapseBase*>);
+
+
+   //void logPostSynapseWeight(std::string directory = "");
+   //void logPreSynapseWeight(std::string directory = "");
 
    std::vector<float> getResponseFromLayer(int sourceLayer);
    virtual void rest();

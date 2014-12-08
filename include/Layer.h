@@ -22,6 +22,7 @@
 namespace boost{ namespace serialization { class access; } namespace archive { class text_oarchive; } }
 class Network;
 struct SpikeInfo;
+struct STDPchangeRequest;
 
 class MODULE_EXPORT Layer
 {
@@ -40,12 +41,12 @@ public:
    void update();
    std::vector<int> getWeightFrequencies();
 
-   void logWeight(bool (*pattern)(int) = 0);
-   void logWeight(bool (*pattern)(int, int, int, int) = 0);
+   //void logWeight(bool (*pattern)(int) = 0);
+   //void logWeight(bool (*pattern)(int, int, int, int) = 0);
    void logPotential(bool (*pattern)(int) = 0);
    void logActivity() { mLogActivityFlag = true; }
-   void logPostSynapseWeight(int neuron, std::string directory = "");
-   void logPreSynapseWeight(int neuron, std::string directory = "");
+   //void logPostSynapseWeight(int neuron, std::string directory = "");
+   //void logPreSynapseWeight(int neuron, std::string directory = "");
 
    int  getTime() { return *mTime; }
    bool getContainerFlag() { return mContainerFlag; }
@@ -91,6 +92,7 @@ public:
    float getTaoN() { return mTaoN; }
    float getCMultiplier() { return mCMultiplier; }
    float getDecayMultiplier() { return mDecayWeightMultiplier; }
+   bool  getSharedConnectionFlag() { return mSharedConnectionFlag; }
    int   getNextSynapseID();
    float getDAConcentraion();
    const int* getPointerToTime() { return mTime; }
@@ -98,6 +100,10 @@ public:
    std::string getAddress(int slayer, int sneuron = -1, int dlayer = -1, int dneuron = -1);
    std::vector<float> getResponseFromLayer(int sourceLayer, int destNeuron)
    { return mNeurons[destNeuron]->getResponseFromLayer(sourceLayer); }
+
+   void shareConnection(size_t sourceNeuron=0, int sharingTimeStep=40);
+   void shareConnection(std::vector<SynapseBase*> bases, int sharingTimeStep=40);
+   void giveChangeRequest(STDPchangeRequest request);
 
    //static std::vector<InputInformation> allRandomInputPattern(int time);
    //static std::vector<InputInformation> oneRandomInputPattern(int time);
@@ -116,14 +122,23 @@ public:
    static void makeConnection(Layer* source, Layer* dest, ConnectionInfo (*pattern)(int, int) = 0);
 
 private:
-   Network*                      mNetwork;
-   const int*                    mTime;
-   int                           mID;
-   std::vector<Neuron*>          mNeurons;
-   std::vector<Synapse*>         mSynapses;
-   std::vector<SpikeInfo>        mSpikes;
-   InputPatternMode              mInputPatternMode;
+   Network*                        mNetwork;
+   const int*                      mTime;
+   int                             mID;
+   std::vector<Neuron*>            mNeurons;
+   std::vector<SynapseBase*>       mSynapses;
+   std::vector<SpikeInfo>          mSpikes;
+   InputPatternMode                mInputPatternMode;
    std::vector<InputInformation> (*mInputPattern)(int);
+   bool                            mSharedConnectionFlag;
+   std::vector<SynapseBase*>       mSharedConnections;
+   int                             mSharedConnectionTimeStep;  //a time step which determines how much time
+                                                               //the layer should wait for neurons' responces
+                                                               //to recognise the winner and let it to increase
+                                                               //or decrease the shared weights.
+
+   std::vector<STDPchangeRequest> mCChangeRequests;            //a vector of requests given by neurons to change
+                                                               //the shared connections
 
    //flags to control learning
    bool                          mExLearningFlag;
@@ -183,11 +198,13 @@ struct SpikeInfo
 {
    int mNeuronID;
    int mTime;
-
-   template <class Archive>
-   void serialize(Archive &ar, const unsigned int version)
-   {
-      ar & mNeuronID & mTime;
-   }
 };
+
+struct STDPchangeRequest
+{
+   int mNeuronID;
+   int mDt;
+   SynapseBase* mSynapse;
+};
+
 #endif

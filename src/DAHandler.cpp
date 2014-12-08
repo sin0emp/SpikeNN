@@ -18,8 +18,8 @@ DAHandler::DAHandler()
 void DAHandler::set(Network* network)
 {
    mNetwork = network;
-   mSynapse = network->mLayers[0]->mSynapses[0];
-   mSynapse->mWeight = 0;
+   mSynapse = network->mLayers[0]->mNeurons[0]->mPreSynapses[0];
+   mSynapse->mBase->mWeight = 0;
 }
 
 float DAHandler::getDAConcentraion()
@@ -47,7 +47,7 @@ void DAHandler::checkForReward()
       mLastPostRewarded = mSynapse->mLastPostSpikeTime;
       mLastPreRewarded = mSynapse->mLastPreSpikeTime;
 
-      if (mLastPostRewarded > mLastPreRewarded && t - mLastPreRewarded < AcceptableDuration)
+      if (mLastPostRewarded > mLastPreRewarded + mSynapse->mBase->mDelay && t - mLastPreRewarded < AcceptableDuration)
       {
          mRewardTimes.push_back(t + 1000 + rand() % 2000);
 
@@ -71,7 +71,8 @@ void DAHandler::checkForReward()
          mLogger.writeLine(Logger::toString((float)mRewardTimes[0]));
          updateDA();
          mD += 0.5;
-         std::cout<<"Happend! DA = " << mD << std::endl;
+         std::cout<<"Happend! DA = " << mD << " weight = " 
+            << mSynapse->mBase->mWeight << std::endl;
          mRewardTimes.erase(mRewardTimes.begin());
       }
       else
