@@ -20,6 +20,7 @@ Layer::Layer(Network* net, int ID, bool shouldLearn, bool isContainer)
 
 void Layer::initialize()
 {
+   mDAHandler = 0;
    mTime = 0;
    mInputPatternMode = NO_INPUT;
    mInputPattern = 0;
@@ -65,10 +66,22 @@ Layer::~Layer()
 
    for (std::size_t i = 0; i < mSharedConnections.size(); ++i) 
       delete mSharedConnections[i];
+
+   if(mDAHandler)
+      delete mDAHandler;
 }
+
+//void Layer::addDAModule()
+//{
+//   mDAHandler = new DAHandler();
+//   mDAHandler->set(this);
+//}
 
 void Layer::update()
 {
+   if (mDAHandler)
+      mDAHandler->update();
+
    size_t k;
    switch (mInputPatternMode)
    {
@@ -161,10 +174,10 @@ void Layer::update()
                   break;
             }
 
-            if (maxNeuron == -1 || (j-i-1 > maxResponse && sumRec < minSumRec))
+            if (maxNeuron == -1 || j-i > maxResponse || (j-i == maxResponse && sumRec < minSumRec))
             {
                maxNeuron = i;
-               maxResponse = j-i-1;
+               maxResponse = j-i;
                minSumRec = sumRec;
             }
 
@@ -358,11 +371,6 @@ void Layer::recordSpike(int NeuronID)
    }
 }
 
-float Layer::getDAConcentraion()
-{
-   return mNetwork->getDAConcentraion();
-}
-
 int Layer::getNextSynapseID()
 {
    return mNetwork->getNextSynapseID();
@@ -412,6 +420,9 @@ void Layer::shareConnection(std::vector<SynapseBase*> bases, int sharingTimeStep
    for (size_t i=0; i<mNeurons.size(); ++i)
          mNeurons[i]->setPreSynapsesToShare(bases);
 
+   for (size_t i=0; i<mSharedConnections.size(); ++i)
+      delete mSharedConnections[i];
+
    mSharedConnectionFlag = true;
    mSharedConnections = bases;
    mSharedConnectionTimeStep = sharingTimeStep;
@@ -421,8 +432,8 @@ void Layer::shareConnection(std::vector<SynapseBase*> bases, int sharingTimeStep
 void Layer::giveChangeRequest(STDPchangeRequest request)
 {
    //record the request and also sort the list using insertion sort
-   mCChangeRequests.push_back(request);
-   size_t i = mCChangeRequests.size()-1;
+   //mCChangeRequests.push_back(request);
+   int i = mCChangeRequests.size()-1;
    for (; i>=0; --i)
       if (mCChangeRequests[i].mNeuronID == request.mNeuronID)
          break;
@@ -446,7 +457,9 @@ void Layer::serialize(Archive &ar, const unsigned int version)
       & mInMaxWeight & mInMaxRandWeight
       & mInMinRandWeight & mMaxRandDelay
       & mMinRandDelay & mMinInputCurrent
-      & mMaxInputCurrent & mSharedConnectionFlag;
+      & mMaxInputCurrent & mSharedConnectionFlag
+      & mSharedConnections & mSharedConnectionTimeStep
+      & mDAHandler;
 }
 
 template void Layer::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);

@@ -103,14 +103,25 @@ void Synapse::addSpike()
 
 
    //TODO: don't give request when learning is turned off!
-   if (!mBase->mLayer->getSharedConnectionFlag())
-      mBase->stepIncreaseSTDP(mLastPostSpikeTime - mLastPreSpikeTime);
-   else if (mLastPostSpikeTime > 0)
+   if ((mBase->mType == EXCITATORY && mBase->mLayer->shouldExcitatoryLearn()) ||
+       (mBase->mType == INHIBITORY && mBase->mLayer->shouldInhibitoryLearn()))
    {
-      STDPchangeRequest req = {mPostNeuron->getID(), mLastPostSpikeTime - mLastPreSpikeTime, mBase};
-      mBase->mLayer->giveChangeRequest(req);
+      if (!mBase->mLayer->getSharedConnectionFlag())
+      {
+         if (abs(mLastPostSpikeTime - mLastPreSpikeTime) < 20)
+            mBase->stepIncreaseSTDP(mLastPostSpikeTime - mLastPreSpikeTime);
+         mLastPreSpikeTime = mLastPostSpikeTime = -1000;
+      }
+      else if (mLastPostSpikeTime > 0)
+      {
+         if (abs(mLastPostSpikeTime - mLastPreSpikeTime) < 20)
+         {
+            STDPchangeRequest req = {mPostNeuron->getID(), mLastPostSpikeTime - mLastPreSpikeTime, mBase};
+            mBase->mLayer->giveChangeRequest(req);
+         }
+         mLastPreSpikeTime = mLastPostSpikeTime = -1000;
+      }
    }
-   //mLastPostSpikeTime = -1000;
 }
 
 void Synapse::setPostSpikeTime()
@@ -118,13 +129,20 @@ void Synapse::setPostSpikeTime()
    mLastPostSpikeTime = *mTime;
 
    if (!mBase->mLayer->getSharedConnectionFlag())
-      mBase->stepIncreaseSTDP(mLastPostSpikeTime - mLastPreSpikeTime);
+   {
+      if (abs(mLastPostSpikeTime - mLastPreSpikeTime) < 20)
+         mBase->stepIncreaseSTDP(mLastPostSpikeTime - mLastPreSpikeTime);
+      mLastPreSpikeTime = mLastPostSpikeTime = -1000;
+   }
    else if (mLastPreSpikeTime > 0)
    {
-      STDPchangeRequest req = {mPostNeuron->getID(), mLastPostSpikeTime - mLastPreSpikeTime, mBase};
-      mBase->mLayer->giveChangeRequest(req);
+      if (abs(mLastPostSpikeTime - mLastPreSpikeTime) < 20)
+      {
+         STDPchangeRequest req = {mPostNeuron->getID(), mLastPostSpikeTime - mLastPreSpikeTime, mBase};
+         mBase->mLayer->giveChangeRequest(req);
+      }
+      mLastPreSpikeTime = mLastPostSpikeTime = -1000;
    }
-   //mLastPreSpikeTime = -1000;
 }
 
 //void Synapse::addWeightLog(std::string directory)

@@ -25,6 +25,7 @@ class MODULE_EXPORT LIFNeuron : public Neuron
    friend class boost::serialization::access;
 public:
    LIFNeuron(Layer* layer, int ID, ChannelType type = EXCITATORY, ParameterContainer* params = 0);
+   LIFNeuron() {}   //used only by boost::serialization
 
    void setParameters(float a, float b, float c, float vthresh);
    void setParameters(ParameterContainer params);
@@ -40,7 +41,6 @@ private:
 
    template <class Archive>
    void serialize(Archive &ar, const unsigned int version);
-   LIFNeuron() {}
 };
 
 //structure for the izhikech model's parameters used for initialization

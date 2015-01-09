@@ -26,6 +26,16 @@ std::string Logger::toString(float input)
    return ss.str();
 }
 
+std::string Logger::toString(std::vector<float> input)
+{
+   std::stringstream ss;
+
+   for (size_t i=0; i<input.size(); ++i)
+      ss << input[i] << " ";
+
+   return ss.str();
+}
+
 //template <class Archive>
 //void Logger::serialize(Archive &ar, const unsigned int version)
 //{

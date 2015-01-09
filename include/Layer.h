@@ -16,6 +16,7 @@
 #include "Neuron.h"
 #include "IzhikevichNeuron.h"
 #include "GlobalVars.h"
+#include "DAHandler.h"
 #include <vector>
 #include <map>
 
@@ -30,6 +31,7 @@ class MODULE_EXPORT Layer
    friend class DAHandler;
 public:
    Layer(Network* net, int ID, bool shouldLearn = true, bool isContainer = false);
+   Layer() { initialize(); } //used only by boost::serialization
    void wakeup(); //used to set dependent parameters loading
    ~Layer();
 
@@ -51,7 +53,7 @@ public:
    int  getTime() { return *mTime; }
    bool getContainerFlag() { return mContainerFlag; }
    void setContainerFlag(bool flag) { mContainerFlag = flag; }
-
+   int  getNeuronsNumber() { return mNeurons.size(); }
    bool getExcitatoryLearningFlag() { return mExLearningFlag; }
    void setExcitatoryLearningFlag(bool flag) { mExLearningFlag = flag; updateLearningFlags(); }
    bool getInhibitoryLearningFlag() { return mInLearningFlag; }
@@ -63,7 +65,7 @@ public:
    bool shouldExcitatoryLearn() { return mExShouldLearn; }
    bool shouldInhibitoryLearn() { return mInShouldLearn; }
    
-   void recordSpike(int NeuronID);
+   virtual void recordSpike(int NeuronID); //virtual for DAHandler notifications
    
    void setSTDPParameters(float CMultiplier, float AP, float AN, float decayMultiplier = 1,
       int STDPTimeStep = 100, float TaoP = 20, float TaoN = 20)
@@ -91,10 +93,12 @@ public:
    float getTaoP() { return mTaoP; }
    float getTaoN() { return mTaoN; }
    float getCMultiplier() { return mCMultiplier; }
+   float getDAConcentraion() { return (mDAHandler) ? mDAHandler->getDAConcentraion() : -1; }
    float getDecayMultiplier() { return mDecayWeightMultiplier; }
    bool  getSharedConnectionFlag() { return mSharedConnectionFlag; }
    int   getNextSynapseID();
-   float getDAConcentraion();
+   //float getDAConcentraion() {return (mDAHandler)?mDAHandler->getDAConcentraion():-1; }
+   //void addDAModule();
    const int* getPointerToTime() { return mTime; }
    void  restNeurons();
    std::string getAddress(int slayer, int sneuron = -1, int dlayer = -1, int dneuron = -1);
@@ -103,6 +107,8 @@ public:
 
    void shareConnection(size_t sourceNeuron=0, int sharingTimeStep=40);
    void shareConnection(std::vector<SynapseBase*> bases, int sharingTimeStep=40);
+   void setSharedWeights(std::vector<float> weights)
+   { for(size_t i=0; i<weights.size(); ++i) mSharedConnections[i]->mWeight = weights[i]; }
    void giveChangeRequest(STDPchangeRequest request);
 
    //static std::vector<InputInformation> allRandomInputPattern(int time);
@@ -121,8 +127,9 @@ public:
 
    static void makeConnection(Layer* source, Layer* dest, ConnectionInfo (*pattern)(int, int) = 0);
 
-private:
+protected:
    Network*                        mNetwork;
+   DAHandler*                      mDAHandler;
    const int*                      mTime;
    int                             mID;
    std::vector<Neuron*>            mNeurons;
@@ -183,7 +190,6 @@ private:
 
    template <class Archive>
    void serialize(Archive &ar, const unsigned int version);
-   Layer() { initialize(); } //used only by boost::serialization
    void initialize(); // default parameters
 };
 

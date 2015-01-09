@@ -27,6 +27,8 @@ public:
    //default parameters describes a regular spike: a = 0.02, b = 0.2, c = -65, d = 2
    //default parameters describes a fast spike:
    IzhikevichNeuron(Layer* layer, int ID, ChannelType type = EXCITATORY, ParameterContainer* params = 0);
+   IzhikevichNeuron() {}    //used only by boost::serialization
+
 
    void setParameters(float a, float b, float c, float d);
    void setParameters(ParameterContainer params);
@@ -42,7 +44,6 @@ private:
 
    template <class Archive>
    void serialize(Archive &ar, const unsigned int version);
-   IzhikevichNeuron() {}
 };
 
 //structure for the izhikech model's parameters used for initialization

@@ -28,8 +28,11 @@ struct MODULE_EXPORT SynapseBase
    friend class Synapse;
    friend class boost::serialization::access;
    friend class DAHandler;
+   friend class Layer;
 public:
    SynapseBase(Layer* layer, float weight, int delay, ChannelType type = EXCITATORY);
+   SynapseBase(){ initialize(); } //used only by boost::serialization
+
    float getWeight() { return mWeight; }
    ChannelType getType() { return mType; }
    void updateWeight();
@@ -46,7 +49,6 @@ private:
 
    template <class Archive>
    void serialize(Archive &ar, const unsigned int version);
-   SynapseBase(){ initialize(); }
 };
 
 class MODULE_EXPORT Synapse
@@ -56,6 +58,7 @@ class MODULE_EXPORT Synapse
 public:
    Synapse(Layer* layer, Neuron* pre, Neuron* post, ChannelType type = EXCITATORY,
            float weight = -1, int delay = -1);
+   Synapse() { initialize(); } //used only by boost::serialization
    ~Synapse();
    void wakeup();
 
@@ -95,7 +98,6 @@ private:
    void initialize();
    template <class Archive>
    void serialize(Archive &ar, const unsigned int version);
-   Synapse() { initialize(); } //used only by boost::serialization
 };
 
 #endif

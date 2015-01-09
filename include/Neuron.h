@@ -28,6 +28,7 @@ class MODULE_EXPORT Neuron
    friend class DAHandler;
 public:
    Neuron(Layer* layer, int ID, ChannelType type = EXCITATORY);
+   Neuron() { initialize(); }  //used only by boost::serialization
    ~Neuron();
    void wakeup();
 
@@ -78,7 +79,6 @@ protected:
 
    template <class Archive>
    void serialize(Archive &ar, const unsigned int version);
-   Neuron() { initialize(); }
 };
 
 struct CurrentInfo

@@ -15,6 +15,7 @@
 
 #include <fstream>
 #include <string>
+#include <vector>
 
 class MODULE_EXPORT Logger
 {
@@ -43,6 +44,7 @@ public:
    }
    
    static std::string toString(float input);
+   static std::string toString(std::vector<float> input);
 
    //Logger& operator=(Logger& rhs)
    //{

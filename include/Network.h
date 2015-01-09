@@ -19,7 +19,6 @@
 #include <time.h>
 #include <stdlib.h>
 #include "GlobalVars.h"
-#include "DAHandler.h"
 
 namespace boost{ namespace serialization { class access; } namespace archive { class text_oarchive; } }
 
@@ -69,13 +68,13 @@ public:
    { mLayers[layer]->shareConnection(sourceNeuron, sharingTimeStep); }
    void shareConnection(int layer, std::vector<SynapseBase*> bases, int sharingTimeStep=40)
    { mLayers[layer]->shareConnection(bases, sharingTimeStep); }
+   void setSharedWeights(int layer, std::vector<float> bases)
+   { mLayers[layer]->setSharedWeights(bases); }
 
    //Network control methods
    int  getTime() { return mTime; }
    const int* getPointerToTime() { return &mTime; }
-   float getDAConcentraion() {return (mDAHandler)?mDAHandler->getDAConcentraion():-1; }
    int  getNextSynapseID() { return ++mLastSynapseID; }
-   void addDAModule();
    void runNetwork(int maxTime);
    void logLayerActivity(int layer);
    void logSettings();
@@ -175,7 +174,6 @@ public:
 protected:
    int                  mTime;
    std::vector<Layer*>  mLayers;
-   DAHandler*           mDAHandler;
    int                  mLastLayerID;
    int                  mLastSynapseID;
    Logger               mLogger;

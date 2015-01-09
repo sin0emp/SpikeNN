@@ -153,7 +153,8 @@ void Neuron::setPreSynapsesToShare(std::vector<SynapseBase*> bases)
 {
    for (size_t i=0; i<mPreSynapses.size(); ++i)
    {
-      delete mPreSynapses[i]->mBase;
+      if (!mLayer->getSharedConnectionFlag())
+         delete mPreSynapses[i]->mBase;
       mPreSynapses[i]->mBase = bases[i];
    }
 }

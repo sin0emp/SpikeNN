@@ -23,10 +23,11 @@ class MODULE_EXPORT DAHandler
    friend class boost::serialization::access;
 public:
    DAHandler();
-   void set(Network* network);
+   void set(Layer* layer, int timeStep);
    
-   float getDAConcentraion();
-   void  checkForReward();
+   float getDAConcentraion() { return mD; }
+   void  notifyOfSpike(int group) { (group == 1)? ++mG1SpikeNum : ++mG2SpikeNum; }
+
    void  update();
    float TauD;  //DA uptake constant
 
@@ -34,18 +35,21 @@ private:
    //model variables and parameters
    float mD;           //DA concentration
    float mDMultiplier;
+   int   mG1SpikeNum;
+   int   mG2SpikeNum;
+   int   mTimeStep;
    std::vector<int> mRewardTimes;
 
    int mLastPreRewarded;
    int mLastPostRewarded;
-   int mLastDAUpdate;
 
-   Synapse* mSynapse;
-   Network* mNetwork;
-   Logger   mLogger;
+   //elements that DA module might work with
+   Layer*                mLayer;
+
+   Logger       mLogger;
    int AcceptableDuration;
-   
-   void  updateDA();
+
+   //void  checkForReward();
 
    template <class Archive>
    void serialize(Archive &ar, const unsigned int version);

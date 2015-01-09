@@ -16,7 +16,6 @@ Network::Network()
 void Network::initialize()
 {
    mTime = 0;
-   mDAHandler = 0;
    mLastLayerID = -1;
    mLastSynapseID = -1;
    mLogger.set("Network");
@@ -45,9 +44,6 @@ Network::~Network()
 {
    for (size_t i=0; i<mLayers.size(); ++i)
       delete mLayers[i];
-
-   if(mDAHandler)
-      delete mDAHandler;
 }
 
 int Network::addLayer(bool shouldLearn, bool isContainer)
@@ -59,12 +55,6 @@ int Network::addLayer(bool shouldLearn, bool isContainer)
    mLayers[mLastLayerID]->setSTDPParameters(mCMultiplier, mAP, mAN, mDecayWeightMultiplier, 
       mSTDPTimeStep, mTaoP, mTaoN);
    return mLastLayerID;
-}
-
-void Network::addDAModule()
-{
-   mDAHandler = new DAHandler();
-   mDAHandler->set(this);
 }
 
 void Network::runNetwork(int maxTime)
@@ -92,10 +82,6 @@ void Network::runNetwork(int maxTime)
       //or hierarichally??
       //for (std::size_t i = 0; i < mLayers.size(); i++)
       //   mLayers[i]->update();
-
-
-      if (mDAHandler)
-         mDAHandler->update();
    }
 
    mLogger.writeLine("Frequencies are");
@@ -185,7 +171,7 @@ std::string Network::getAddress(int slayer, int sneuron, int dlayer, int dneuron
 template <class Archive>
 void Network::serialize(Archive &ar, const unsigned int version)
 {
-   ar & mLayers & mDAHandler
+   ar & mLayers
       & mLastLayerID & mLastSynapseID
       & mAP & mAN
       & mTaoP & mTaoN
@@ -224,5 +210,3 @@ Network* Network::loadNetwork(std::string path)
    file.close();
    return net;
 }
-
-

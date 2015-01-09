@@ -15,6 +15,8 @@
 
 #include "Network.h"
 
+#define deg2rad(d) (d*3.14159265)/180.0
+
 enum LayerType
 {
    INPUT_LAYER = 0,
@@ -61,9 +63,36 @@ struct PixelInputInformation
 
 namespace boost{ namespace serialization { class access; } namespace archive { class text_oarchive; } }
 
+class MODULE_EXPORT PFCLayer : public Layer
+{
+   friend class DAHandler;
+   friend class boost::serialization::access;
+public:
+   PFCLayer(Network* net, int ID, bool shouldLearn = true, bool isContainer = false) 
+      : Layer(net, ID, shouldLearn, isContainer) { initialize(); }
+   PFCLayer() : Layer() { initialize(); } //used only by boost::serialization
+   template <class NeuronTemp>
+   void arrangeNeurons(int inNum, int groupsNum, int additionalNum, float inratio, int neuronsToConnect,
+               ParameterContainer* inparams = 0, ParameterContainer* exparams = 0);
+   virtual void recordSpike(int NeuronID);
+   void getInputFrom(Layer* slayer);
+
+private:
+   //std::vector<int> mGroupsLastIndex; TODO: make it general
+   int mG1LastIndex;
+   int mG2LastIndex;
+   int mInLastIndex;
+
+   //void makeGroupIslands(int neuronNum);
+   void initialize();
+   template <class Archive>
+   void serialize(Archive &ar, const unsigned int version);
+};
+
 class MODULE_EXPORT VisualNetwork : public Network
 {
    friend class boost::serialization::access;
+   friend class DAHandler;
 public:
    VisualNetwork();
 
@@ -86,6 +115,12 @@ public:
    template <class NeuronTemp>
    int addComplexCellFromSuperLayer(int sourceSuperLayer, Point2D receptiveFieldSize,
       Point2D fieldStep, bool shareConnectionsFlag = false, ParameterContainer* neuronParams = 0);
+
+   //template <class NeuronTemp>
+   int addPFCLayer(int inNum=50, int groupsNum=50, int additionalNum=100, float inratio=0.2, int neuronsToConnect=25,
+        ParameterContainer* inparams = 0, ParameterContainer* exparams = 0);
+
+   void setOrientationalWeights(int superLayer);
 
    void makeConnection(int sourceLayer, int destLayer, ConnectionInfo (*pattern)(Point2D, Point2D));
 
@@ -125,6 +160,7 @@ private:
    std::vector<PixelInputInformation>  mInputInfos;
    std::vector<std::vector<int> >      mSuperLayersContent;
    int                                 mPresentTimeStep;
+   PFCLayer*                           mPFCLayer;
 
    //parameters for making connection which is used in defaultConnectingPattern
    Point2D mReceptiveFieldSize;
@@ -143,6 +179,8 @@ private:
    int to1D(int layerIndex, Point2D neuronIndex)
    { return (neuronIndex.mHeight * mLayersSizeInfo[layerIndex].mWidth) + neuronIndex.mWidth; }
 
+   std::vector<float> makeOrientationWeights(int matSize, float maxW, int orientationDegree);
+
    template <class NeuronTemp>
    int addReceptiveFieldLayer(int sourceLayer, Point2D receptiveFieldSize, Point2D fieldStep, LayerType type,
       bool shareConnections = false, ParameterContainer* neuronParams = 0);
@@ -151,6 +189,26 @@ private:
    template <class Archive>
    void serialize(Archive &ar, const unsigned int version);
 };
+
+template <class NeuronTemp>
+void PFCLayer::arrangeNeurons(int inNum, int groupsNum, int additionalNum, float inratio, int neuronsToConnect,
+                   ParameterContainer* inparams, ParameterContainer* exparams)
+{
+   int total = inNum+2*groupsNum+additionalNum;
+
+   for (size_t i=0; i < total; ++i)
+   {
+      float ran = ((float)rand() / RAND_MAX);
+      addNeuron<NeuronTemp>(1, (ran <= inratio) ? INHIBITORY : EXCITATORY,
+                               (ran <= inratio) ? inparams : exparams);
+   }
+
+   mInLastIndex = inNum-1;
+   mG1LastIndex = mInLastIndex + groupsNum;
+   mG2LastIndex = mG1LastIndex + groupsNum;
+
+   Layer::makeConnection(this, this, neuronsToConnect, 6, 5, -1, 1);
+}
 
 template <class NeuronTemp>
 int VisualNetwork::addLayer(Point2D size, LayerType layerType, 
@@ -286,5 +344,7 @@ int VisualNetwork::addComplexCellFromSuperLayer(int sourceSuperLayer, Point2D re
 
    return sindex;
 }
+
+
 
 #endif
