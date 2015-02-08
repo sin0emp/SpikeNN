@@ -45,6 +45,7 @@ void Layer::initialize()
    mMaxInputCurrent = 20;
    mSharedConnectionFlag = false;
    mSharedConnectionTimeStep = -1;
+   mSharedWinnerID = -1;
 }
 
 void Layer::wakeup()
@@ -153,43 +154,9 @@ void Layer::update()
    }
 
    if (mSharedConnectionFlag)
-      if (*mTime % mSharedConnectionTimeStep == 0 && mCChangeRequests.size() > 0)
+      if (*mTime % mSharedConnectionTimeStep == 0)
       {
-         //TODO: it's a mess here!
-
-         //calculate which neurons had the most activity
-         int maxNeuron = -1;
-         int maxResponse = 0;
-         int minSumRec = 1000000;
-
-         for (size_t i=0; i<mCChangeRequests.size(); ++i)
-         {
-            size_t j = i;
-            int sumRec = 0;
-            while (mCChangeRequests[j].mNeuronID == mCChangeRequests[i].mNeuronID)
-            {
-               sumRec += std::abs(mCChangeRequests[j].mDt);
-               ++j;
-               if (j == mCChangeRequests.size())
-                  break;
-            }
-
-            if (maxNeuron == -1 || j-i > maxResponse || (j-i == maxResponse && sumRec < minSumRec))
-            {
-               maxNeuron = i;
-               maxResponse = j-i;
-               minSumRec = sumRec;
-            }
-
-            i = j-1;
-         }
-         
-         //apply its request
-         for (size_t i=maxNeuron; i<mCChangeRequests.size() && 
-            mCChangeRequests[i].mNeuronID == mCChangeRequests[maxNeuron].mNeuronID; ++i)
-            mCChangeRequests[i].mSynapse->stepIncreaseSTDP(mCChangeRequests[i].mDt);
-
-         mCChangeRequests.clear();
+         mSharedWinnerID = -1;
       }
 
    if (mExShouldLearn || mInShouldLearn)
@@ -272,7 +239,7 @@ void Layer::makeConnection(Layer* source, Layer* dest,
          int k = rand() % dest->mNeurons.size();
 
          //no self or multiple or inhibitory to inhibitory connection!
-         if (i == k || source->mNeurons[i]->isConnectedTo(source->mNeurons[k])
+         if (i == k || source->mNeurons[i]->isConnectedTo(dest->mNeurons[k])
             || (source->mNeurons[i]->getType() == INHIBITORY && dest->mNeurons[k]->getType() == INHIBITORY))
          {
             --j;
@@ -429,17 +396,17 @@ void Layer::shareConnection(std::vector<SynapseBase*> bases, int sharingTimeStep
    mSynapses.clear();
 }
 
-void Layer::giveChangeRequest(STDPchangeRequest request)
-{
-   //record the request and also sort the list using insertion sort
-   //mCChangeRequests.push_back(request);
-   int i = mCChangeRequests.size()-1;
-   for (; i>=0; --i)
-      if (mCChangeRequests[i].mNeuronID == request.mNeuronID)
-         break;
-
-   mCChangeRequests.insert(mCChangeRequests.begin() + (i + 1), request);
-}
+//void Layer::giveChangeRequest(STDPchangeRequest request)
+//{
+//   //record the request and also sort the list using insertion sort
+//   //mCChangeRequests.push_back(request);
+//   int i = mCChangeRequests.size()-1;
+//   for (; i>=0; --i)
+//      if (mCChangeRequests[i].mNeuronID == request.mNeuronID)
+//         break;
+//
+//   mCChangeRequests.insert(mCChangeRequests.begin() + (i + 1), request);
+//}
 
 template <class Archive>
 void Layer::serialize(Archive &ar, const unsigned int version)

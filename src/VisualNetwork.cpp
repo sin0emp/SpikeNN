@@ -11,31 +11,117 @@
 BOOST_CLASS_EXPORT(VisualNetwork);
 BOOST_CLASS_EXPORT(PFCLayer);
 
+PFCLayer::PFCLayer(Network* net, int ID, bool shouldLearn, bool isContainer, RewardChecker* rc, int representClass)
+   : Layer(net, ID, shouldLearn, isContainer) 
+{
+   initialize(); 
+   mDAHandler = new DAHandler();
+   mDAHandler->set(this, rc, representClass, 40);
+}
+
 void PFCLayer::recordSpike(int NeuronID)
 {
    Layer::recordSpike(NeuronID);
-   if (NeuronID > mInLastIndex)
-   {
-      if (NeuronID <= mG1LastIndex)
-         mDAHandler->notifyOfSpike(1);
-      else if (NeuronID <= mG2LastIndex)
-         mDAHandler->notifyOfSpike(2);
-   }
+   //if (mSpotAreaPhase)
+   //   ++mActivity[NeuronID];
+   //else if (NeuronID <= mG1LastIndex)
+   //   mDAHandler->notifyOfSpike(1);
+   //else if (NeuronID <= mG2LastIndex)
+   //   mDAHandler->notifyOfSpike(2);
+   if (NeuronID < mGroupNum)
+      mDAHandler->notifyOfSpike();
 }
 
-void PFCLayer::getInputFrom(Layer* slayer)
-{
-   for (size_t i=0; i <= mInLastIndex; ++i)
-      for (size_t j=0; j < slayer->getNeuronsNumber(); ++j)
-         Layer::makeConnection(slayer, j, this, i, 20, -1);
-}
+//void PFCLayer::getInputFrom(Layer* slayer, int neuronsToConnect)
+//{
+//   for (size_t i=0; i <= mInLastIndex; ++i)
+//      for (size_t j=0; j < slayer->getNeuronsNumber(); ++j)
+//         Layer::makeConnection(slayer, j, this, i, 20, -1);
+//}
 
 void PFCLayer::initialize()
 {
-   mG1LastIndex = mG2LastIndex = mInLastIndex = -1;
-   mDAHandler = new DAHandler();
-   mDAHandler->set(this, 40);
+   //mG1LastIndex = mG2LastIndex = -1;
+   mGroupNum = 0;
+   mDAHandler = 0;
+   //mSpotAreaPhase = false;
 }
+
+/*
+void PFCLayer::spotGroup(int group)
+{
+   mSpotAreaPhase=true;
+   mActivity = new int[mNeurons.size()]();
+}
+
+void PFCLayer::endSpotting(int group)
+{
+   mSpotAreaPhase = false;
+   ((group == 1)? mActivityG1 : mActivityG2) = mActivity;
+}
+
+void PFCLayer::endSpotting()
+{
+   int* indicesG1 = new int[mNeurons.size()];
+   int* indicesG2 = new int[mNeurons.size()];
+   for (size_t i=0; i<mNeurons.size(); ++i)
+   { indicesG1[i] = i; indicesG2[i] = i; }
+
+   for (size_t i=0; i<mNeurons.size(); ++i)
+   {
+      for (size_t j=i; j<mNeurons.size()-1; ++j)
+      {
+         if (mActivityG1[j+1] > mActivityG1[j])
+         {
+            int hold = mActivityG1[j];
+            mActivityG1[j]=mActivityG1[j+1];
+            mActivityG1[j+1]=hold;
+            hold = indicesG1[j];
+            indicesG1[j]=indicesG1[j+1];
+            indicesG1[j+1]=hold;
+         }
+
+         if (mActivityG2[j+1] > mActivityG2[j])
+         {
+            int hold = mActivityG2[j];
+            mActivityG2[j]=mActivityG2[j+1];
+            mActivityG2[j+1]=hold;
+            hold = indicesG2[j];
+            indicesG2[j]=indicesG2[j+1];
+            indicesG2[j+1]=hold;
+         }
+      }
+   }
+
+   for (size_t i=0; i<100; ++i)
+   {
+      for (size_t j=i; j<100; ++j)
+      {
+         if (indicesG1[j+1]>indicesG1[j])
+         {
+            int hold = indicesG1[j];
+            indicesG1[j]=indicesG1[j+1];
+            indicesG1[j+1]=hold;
+         }
+         if (indicesG2[j+1]>indicesG2[j])
+         {
+            int hold = indicesG2[j];
+            indicesG2[j]=indicesG2[j+1];
+            indicesG2[j+1]=hold;
+         }
+      }
+   }
+
+   std::vector<Neuron*> reordered;
+   for (size_t i; i<=mInLastIndex; ++i)
+      reordered.push_back(mNeurons[i]);
+
+   
+   size_t currentIndex = mInLastIndex+1;
+   int maxActG1[100];
+   int maxActG2[100];
+}
+*/
 
 VisualNetwork::VisualNetwork()
 {
@@ -47,7 +133,6 @@ void VisualNetwork::initialize()
    mCustomConnectionPattern = 0;
    mCurrentImageIndex = -1;
    mPresentTimeStep = 40;
-   mPFCLayer = 0;
 }
 
 ConnectionInfo VisualNetwork::defaultConnectingPattern(int sourceIndex, int destIndex)
@@ -93,6 +178,9 @@ std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
       //for (size_t i = 0; i < mLayers.size(); ++i)
       //   mLayers[i]->restNeurons();
 
+      for (size_t i = 0; i < mPFCLayers.size(); ++i)
+         mPFCLayers[i]->restNeurons();
+
       //mCurrentImageIndex = (int)(((float)rand() / RAND_MAX) * mImageFileNames.size());
       ++mCurrentImageIndex;
       if (mCurrentImageIndex == mImageFileNames.size()) mCurrentImageIndex = 0;
@@ -112,7 +200,7 @@ std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
             float gray = (float)(0.21*pix.Red + 0.72*pix.Green + 0.07*pix.Blue);
             if (gray < 240) //a threshold for color strength which leads to a spikes
             {
-               int timeToAdd = time + (int)(10*(gray/256));
+               int timeToAdd = time + (int)(10*(gray/255)+0.5);
                while (timeToAdd < time + mPresentTimeStep)
                {
                   PixelInputInformation info(Point2D(i,j), timeToAdd);
@@ -177,7 +265,10 @@ void VisualNetwork::setInputImagesDirectory(std::string dirName, int presentTime
       
       mImageFileNames.clear();
       for (std::size_t i = 0; i < filenames.size(); ++i)
+      {
          mImageFileNames.push_back(filenames[shuffled[i]]);
+         //mImageFileNames.push_back(filenames[shuffled[i]]);
+      }
 
       setInputPattern(mInputLayerIndex, MANUAL_INPUT);
       mImagesFolderName = dirName;
@@ -194,15 +285,22 @@ void VisualNetwork::setInputImagesDirectory(std::string dirName, int presentTime
 std::string VisualNetwork::getAddress(int slayer, int sneuron, int dlayer, int dneuron)
 {
    std::string s;
-   int pfcIndex = (mPFCLayer) ? mPFCLayer->getID() : -1;
 
    if (slayer != -1)
       s += "l" + Logger::toString((float)slayer);
    if (sneuron != -1)
    {
-      if (slayer == pfcIndex)
-         s += "n" + Logger::toString((float)sneuron);
-      else
+      bool pfcFlag = false;
+      for (size_t i = 0; i<mPFCLayers.size(); ++i)
+      {
+         if (slayer == mPFCLayers[i]->getID())
+         {
+            s += "n" + Logger::toString((float)sneuron);
+            pfcFlag = true;
+         }
+      }
+
+      if (!pfcFlag)
       {
          Point2D n = to2D(slayer, sneuron);
          s += "n" + Logger::toString((float)n.mHeight) + "," + Logger::toString((float)n.mWidth);
@@ -212,9 +310,17 @@ std::string VisualNetwork::getAddress(int slayer, int sneuron, int dlayer, int d
    {
       s += "-TO-l" + Logger::toString((float)dlayer);
 
-      if (dlayer == pfcIndex)
-         s += "n" + Logger::toString((float)dneuron);
-      else
+      bool pfcFlag = false;
+      for (size_t i = 0; i<mPFCLayers.size(); ++i)
+      {
+         if (dlayer == mPFCLayers[i]->getID())
+         {
+            s += "n" + Logger::toString((float)dneuron);
+            pfcFlag = true;
+         }
+      }
+
+      if (!pfcFlag)
       {
          Point2D n = to2D(dlayer, dneuron);
          s += "n" + Logger::toString((float)n.mHeight) + "," + Logger::toString((float)n.mWidth);
@@ -287,7 +393,7 @@ void VisualNetwork::serialize(Archive &ar, const unsigned int version)
    ar & mLayersSizeInfo & mInputLayerIndex
       & mImagesFolderName & mImageFileNames
       & mSuperLayersContent & mConnectionPatternMode
-      & mPFCLayer;
+      & mPFCLayers;
 }
 
 template void VisualNetwork::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);
@@ -363,25 +469,35 @@ template <class Archive>
 void PFCLayer::serialize(Archive &ar, const unsigned int version)
 {
    ar & boost::serialization::base_object<Layer>(*this);
-   ar & mG1LastIndex & mG2LastIndex & mInLastIndex;
+   ar & mGroupNum;/* mG1LastIndex & mG2LastIndex;*/
 }
 
 //template <class NeuronTemp>
-int VisualNetwork::addPFCLayer(int inNum, int groupsNum, int additionalNum, float inratio, int neuronsToConnect,
+int VisualNetwork::addPFCSuperLayer(int classNum, int neuronsForGroup, int additionalNum, float inratio, int neuronsToConnect,
         ParameterContainer* inparams, ParameterContainer* exparams)
 {
-   mPFCLayer = new PFCLayer(this, ++mLastLayerID, true, false);
-   mPFCLayer->arrangeNeurons<IzhikevichNeuron>(inNum, groupsNum, additionalNum, inratio, neuronsToConnect, inparams, exparams);
+   RewardChecker* rc = new RewardChecker();
 
-   mLayers.push_back(mPFCLayer);
-   mLayers[mLastLayerID]->setBoundingParameters(mExMaxWeight, mInMaxWeight, mExMinRandWeight,
-      mExMaxRandWeight, mInMinRandWeight, mInMaxRandWeight, mMinRandDelay, mMaxRandDelay);
-   mLayers[mLastLayerID]->setSTDPParameters(mCMultiplier, mAP, mAN, mDecayWeightMultiplier, 
-      mSTDPTimeStep, mTaoP, mTaoN);
+   mSuperLayersContent.push_back(std::vector<int>());
+   for (int i=0; i<classNum; ++i)
+   {
+      PFCLayer* pfc = new PFCLayer(this, ++mLastLayerID, true, false, rc, i+1);
+      mPFCLayers.push_back(pfc);
+      mLayers.push_back(pfc);
+      mSuperLayersContent[mSuperLayersContent.size()-1].push_back(mLayers.size()-1);
 
-   int n = mSuperLayersContent.size()-1;
-   for (size_t i=0; i<mSuperLayersContent[n].size(); ++i)
-      mPFCLayer->getInputFrom(mLayers[mSuperLayersContent[n][i]]);
+      pfc->arrangeNeurons<IzhikevichNeuron>(neuronsForGroup, additionalNum, inratio, neuronsToConnect, inparams, exparams);
+      pfc->setBoundingParameters(mExMaxWeight, mInMaxWeight, mExMinRandWeight,
+            mExMaxRandWeight, mInMinRandWeight, mInMaxRandWeight, mMinRandDelay, mMaxRandDelay);
+      pfc->setSTDPParameters(mCMultiplier, mAP, mAN, mDecayWeightMultiplier, 
+            mSTDPTimeStep, mTaoP, mTaoN);
 
-   return mLastLayerID;
+      int n = mSuperLayersContent.size()-2;
+      for (size_t i=0; i<mSuperLayersContent[n].size(); ++i)
+      {
+         Layer::makeConnection(mLayers[mSuperLayersContent[n][i]], pfc, neuronsToConnect, 6, 5, -1, 1);
+      }
+   }
+
+   return mSuperLayersContent.size()-1;
 }

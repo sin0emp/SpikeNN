@@ -83,6 +83,7 @@ public:
    //void logSynapseWeight(bool (*pattern)(int, int, int, int));
    //void logSynapseWeight(bool (*pattern)(int));
    void logPotential(int layer, bool (*pattern)(int) = 0) { mLayers[layer]->logPotential(pattern); }
+   //ývoid logPotential(int layerý, int ýneuron, std::string directoryý);ý
 
    void setInputPattern(int layerIndex, InputPatternMode mode, std::vector<InputInformation> (*pattern)(int) = 0)
    {mLayers[layerIndex]->setInputPattern(mode, pattern);}

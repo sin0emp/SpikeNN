@@ -68,22 +68,30 @@ class MODULE_EXPORT PFCLayer : public Layer
    friend class DAHandler;
    friend class boost::serialization::access;
 public:
-   PFCLayer(Network* net, int ID, bool shouldLearn = true, bool isContainer = false) 
-      : Layer(net, ID, shouldLearn, isContainer) { initialize(); }
+   PFCLayer(Network* net, int ID, bool shouldLearn, bool isContainer,
+      RewardChecker* rc, int representClass);
    PFCLayer() : Layer() { initialize(); } //used only by boost::serialization
    template <class NeuronTemp>
-   void arrangeNeurons(int inNum, int groupsNum, int additionalNum, float inratio, int neuronsToConnect,
+   void arrangeNeurons(int neuronsForGroup, int additionalNum, float inratio, int neuronsToConnect,
                ParameterContainer* inparams = 0, ParameterContainer* exparams = 0);
    virtual void recordSpike(int NeuronID);
-   void getInputFrom(Layer* slayer);
+   //void getInputFrom(Layer* slayer, int neuronsToConnect);
+
+   //void spotGroup(int group);
+   //void endSpotting(int group);
+   //void endSpotting();
 
 private:
    //std::vector<int> mGroupsLastIndex; TODO: make it general
-   int mG1LastIndex;
-   int mG2LastIndex;
-   int mInLastIndex;
+   //int mG1LastIndex;
+   //int mG2LastIndex;
+   int mGroupNum;
 
-   //void makeGroupIslands(int neuronNum);
+   //bool  mSpotAreaPhase;
+   //int*  mActivity;
+   //int*  mActivityG1;
+   //int*  mActivityG2;
+
    void initialize();
    template <class Archive>
    void serialize(Archive &ar, const unsigned int version);
@@ -117,7 +125,7 @@ public:
       Point2D fieldStep, bool shareConnectionsFlag = false, ParameterContainer* neuronParams = 0);
 
    //template <class NeuronTemp>
-   int addPFCLayer(int inNum=50, int groupsNum=50, int additionalNum=100, float inratio=0.2, int neuronsToConnect=25,
+   int addPFCSuperLayer(int classNum, int groupsNum=50, int additionalNum=100, float inratio=0.2, int neuronsToConnect=25,
         ParameterContainer* inparams = 0, ParameterContainer* exparams = 0);
 
    void setOrientationalWeights(int superLayer);
@@ -143,7 +151,54 @@ public:
    void shareConnection(int layer, Point2D sourceNeuron=Point2D(0,0), int sharingTimeStep=40) 
    { mLayers[layer]->shareConnection(to1D(layer, sourceNeuron), sharingTimeStep); }
 
+   void setSuperLayerSTDPParameters(int sIndex, float CMultiplier, float AP, float AN, float decayMultiplier = 1,
+      int STDPTimeStep = 100, float TaoP = 20, float TaoN = 20)
+   { 
+      for (size_t i=0; i<mSuperLayersContent[sIndex].size(); ++i)
+         mLayers[mSuperLayersContent[sIndex][i]]->setSTDPParameters(CMultiplier, AP, AN, decayMultiplier, STDPTimeStep, TaoP, TaoN);
+   }
+
+   void setSuperLayerBoundingParameters(int sIndex, float exMaxWeight, float inMaxWeight, float exMinRandWeight, 
+                              float exMaxRandWeight, float inMinRandWeight, float inMaxRandWeight,
+                              int minRandDelay, int maxRandDelay)
+   {
+      for (size_t i=0; i<mSuperLayersContent[sIndex].size(); ++i)
+         mLayers[mSuperLayersContent[sIndex][i]]->setBoundingParameters(exMaxWeight, inMaxWeight, exMinRandWeight, 
+                            exMaxRandWeight, inMinRandWeight, inMaxRandWeight, minRandDelay, maxRandDelay);
+   }
+
+   void setSuperLayerExcitatoryLearningFlag(int sIndex, bool flag)
+   {
+      for (size_t i=0; i<mSuperLayersContent[sIndex].size(); ++i)
+         mLayers[mSuperLayersContent[sIndex][i]]->setExcitatoryLearningFlag(flag);
+   }
+
+   void setSuperLayerIInhibitoryLearningFlag(int sIndex, bool flag)
+   {
+      for (size_t i=0; i<mSuperLayersContent[sIndex].size(); ++i)
+         mLayers[mSuperLayersContent[sIndex][i]]->setInhibitoryLearningFlag(flag);
+   }
+
+   void setSuperLayerExcitatoryLearningLock(int sIndex, bool flag)
+   {
+      for (size_t i=0; i<mSuperLayersContent[sIndex].size(); ++i)
+         mLayers[mSuperLayersContent[sIndex][i]]->setExcitatoryLearningLock(flag);
+   }
+
+   void setSuperLayerInhibitoryLearningLock(int sIndex, bool flag)
+   {
+      for (size_t i=0; i<mSuperLayersContent[sIndex].size(); ++i)
+         mLayers[mSuperLayersContent[sIndex][i]]->setInhibitoryLearningLock(flag);
+   }
+
+   void setSuperLayerContainerFlag(int sIndex, bool containerFlag)
+   {
+      for (size_t i=0; i<mSuperLayersContent[sIndex].size(); ++i)
+         mLayers[mSuperLayersContent[sIndex][i]]->setContainerFlag(containerFlag);
+   }
+
    void runNetwork(FinishCriterion crit, int critNum);
+
    static void saveNetwork(VisualNetwork& visNet, std::string path);
    static VisualNetwork* loadNetwork(std::string path);
 
@@ -160,7 +215,7 @@ private:
    std::vector<PixelInputInformation>  mInputInfos;
    std::vector<std::vector<int> >      mSuperLayersContent;
    int                                 mPresentTimeStep;
-   PFCLayer*                           mPFCLayer;
+   std::vector<PFCLayer*>              mPFCLayers;
 
    //parameters for making connection which is used in defaultConnectingPattern
    Point2D mReceptiveFieldSize;
@@ -191,10 +246,10 @@ private:
 };
 
 template <class NeuronTemp>
-void PFCLayer::arrangeNeurons(int inNum, int groupsNum, int additionalNum, float inratio, int neuronsToConnect,
+void PFCLayer::arrangeNeurons(int neuronsForGroup, int additionalNum, float inratio, int neuronsToConnect,
                    ParameterContainer* inparams, ParameterContainer* exparams)
 {
-   int total = inNum+2*groupsNum+additionalNum;
+   int total = neuronsForGroup+additionalNum;
 
    for (size_t i=0; i < total; ++i)
    {
@@ -203,10 +258,9 @@ void PFCLayer::arrangeNeurons(int inNum, int groupsNum, int additionalNum, float
                                (ran <= inratio) ? inparams : exparams);
    }
 
-   mInLastIndex = inNum-1;
-   mG1LastIndex = mInLastIndex + groupsNum;
-   mG2LastIndex = mG1LastIndex + groupsNum;
-
+   mGroupNum = neuronsForGroup;
+   //mG1LastIndex = groupsNum-1;
+   //mG2LastIndex = mG1LastIndex+mGroupNum;
    Layer::makeConnection(this, this, neuronsToConnect, 6, 5, -1, 1);
 }
 

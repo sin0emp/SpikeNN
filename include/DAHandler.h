@@ -17,16 +17,18 @@
 
 namespace boost{ namespace serialization { class access; } namespace archive { class text_oarchive; } }
 class Network;
+class RewardChecker;
 
 class MODULE_EXPORT DAHandler
 {
    friend class boost::serialization::access;
+   friend class RewardChecker;
 public:
    DAHandler();
-   void set(Layer* layer, int timeStep);
+   void set(Layer* layer, RewardChecker* rewardChecker, int representClass, int timeStep);
    
    float getDAConcentraion() { return mD; }
-   void  notifyOfSpike(int group) { (group == 1)? ++mG1SpikeNum : ++mG2SpikeNum; }
+   void  notifyOfSpike() { /*(group == 1)? ++mG1SpikeNum : ++mG2SpikeNum;*/ ++mGSpikeNum; }
 
    void  update();
    float TauD;  //DA uptake constant
@@ -35,21 +37,44 @@ private:
    //model variables and parameters
    float mD;           //DA concentration
    float mDMultiplier;
-   int   mG1SpikeNum;
-   int   mG2SpikeNum;
+   //int   mG1SpikeNum;
+   //int   mG2SpikeNum;
+   int   mGSpikeNum;
+   int   mRepresentClass;
+
    int   mTimeStep;
+   //bool  mG1WinFlag;
+   //bool  mG2WinFlag;
    std::vector<int> mRewardTimes;
 
-   int mLastPreRewarded;
-   int mLastPostRewarded;
+   //int mLastPreRewarded;
+   //int mLastPostRewarded;
 
+   //int mGuessedRight;
    //elements that DA module might work with
-   Layer*                mLayer;
-
-   Logger       mLogger;
+   Layer*          mLayer;
+   RewardChecker*  mRewartChecker;
+   Logger          mLogger;
    int AcceptableDuration;
 
    //void  checkForReward();
+
+   template <class Archive>
+   void serialize(Archive &ar, const unsigned int version);
+};
+
+class MODULE_EXPORT RewardChecker
+{
+   friend class boost::serialization::access;
+   friend class DAHandler;
+public:
+   RewardChecker() {mWinTimes = 0;}
+   void addDAHandler(DAHandler* dh) { mDAHandlers.push_back(dh); }
+   bool checkForReward(int fromClass);
+
+private:
+   std::vector<DAHandler*> mDAHandlers;
+   int mWinTimes;
 
    template <class Archive>
    void serialize(Archive &ar, const unsigned int version);

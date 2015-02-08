@@ -109,7 +109,7 @@ public:
    void shareConnection(std::vector<SynapseBase*> bases, int sharingTimeStep=40);
    void setSharedWeights(std::vector<float> weights)
    { for(size_t i=0; i<weights.size(); ++i) mSharedConnections[i]->mWeight = weights[i]; }
-   void giveChangeRequest(STDPchangeRequest request);
+   //void giveChangeRequest(STDPchangeRequest request);
 
    //static std::vector<InputInformation> allRandomInputPattern(int time);
    //static std::vector<InputInformation> oneRandomInputPattern(int time);
@@ -127,6 +127,8 @@ public:
 
    static void makeConnection(Layer* source, Layer* dest, ConnectionInfo (*pattern)(int, int) = 0);
 
+   int                             mSharedWinnerID;            //the ID of the neuron that is allowed to changed
+                                                               //shared synapses during a time-step.
 protected:
    Network*                        mNetwork;
    DAHandler*                      mDAHandler;
@@ -143,9 +145,6 @@ protected:
                                                                //the layer should wait for neurons' responces
                                                                //to recognise the winner and let it to increase
                                                                //or decrease the shared weights.
-
-   std::vector<STDPchangeRequest> mCChangeRequests;            //a vector of requests given by neurons to change
-                                                               //the shared connections
 
    //flags to control learning
    bool                          mExLearningFlag;

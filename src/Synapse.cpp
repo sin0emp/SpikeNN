@@ -108,18 +108,19 @@ void Synapse::addSpike()
    {
       if (!mBase->mLayer->getSharedConnectionFlag())
       {
-         if (abs(mLastPostSpikeTime - mLastPreSpikeTime) < 20)
-            mBase->stepIncreaseSTDP(mLastPostSpikeTime - mLastPreSpikeTime);
-         mLastPreSpikeTime = mLastPostSpikeTime = -1000;
+         //if (abs(mLastPostSpikeTime - mLastPreSpikeTime) < 20)
+         mBase->stepIncreaseSTDP(mLastPostSpikeTime - mLastPreSpikeTime);
+         //mLastPreSpikeTime = mLastPostSpikeTime = -1000;
       }
-      else if (mLastPostSpikeTime > 0)
+      else /*if (mLastPostSpikeTime > 0)*/
       {
-         if (abs(mLastPostSpikeTime - mLastPreSpikeTime) < 20)
+         int postID = mPostNeuron->getID();
+         if (mBase->mLayer->mSharedWinnerID == -1 || mBase->mLayer->mSharedWinnerID == postID)
          {
-            STDPchangeRequest req = {mPostNeuron->getID(), mLastPostSpikeTime - mLastPreSpikeTime, mBase};
-            mBase->mLayer->giveChangeRequest(req);
+            mBase->stepIncreaseSTDP(mLastPostSpikeTime - mLastPreSpikeTime);
+            mBase->mLayer->mSharedWinnerID = postID;
          }
-         mLastPreSpikeTime = mLastPostSpikeTime = -1000;
+         //mLastPreSpikeTime = mLastPostSpikeTime = -1000;
       }
    }
 }
@@ -128,20 +129,25 @@ void Synapse::setPostSpikeTime()
 {
    mLastPostSpikeTime = *mTime;
 
-   if (!mBase->mLayer->getSharedConnectionFlag())
+   if ((mBase->mType == EXCITATORY && mBase->mLayer->shouldExcitatoryLearn()) ||
+       (mBase->mType == INHIBITORY && mBase->mLayer->shouldInhibitoryLearn()))
    {
-      if (abs(mLastPostSpikeTime - mLastPreSpikeTime) < 20)
-         mBase->stepIncreaseSTDP(mLastPostSpikeTime - mLastPreSpikeTime);
-      mLastPreSpikeTime = mLastPostSpikeTime = -1000;
-   }
-   else if (mLastPreSpikeTime > 0)
-   {
-      if (abs(mLastPostSpikeTime - mLastPreSpikeTime) < 20)
+      if (!mBase->mLayer->getSharedConnectionFlag())
       {
-         STDPchangeRequest req = {mPostNeuron->getID(), mLastPostSpikeTime - mLastPreSpikeTime, mBase};
-         mBase->mLayer->giveChangeRequest(req);
+         //if (abs(mLastPostSpikeTime - mLastPreSpikeTime) < 20)
+         mBase->stepIncreaseSTDP(mLastPostSpikeTime - mLastPreSpikeTime);
+         //mLastPreSpikeTime = mLastPostSpikeTime = -1000;
       }
-      mLastPreSpikeTime = mLastPostSpikeTime = -1000;
+      else /*if (mLastPreSpikeTime > 0)*/
+      {
+         int postID = mPostNeuron->getID();
+         if (mBase->mLayer->mSharedWinnerID == -1 || mBase->mLayer->mSharedWinnerID == postID)
+         {
+            mBase->stepIncreaseSTDP(mLastPostSpikeTime - mLastPreSpikeTime);
+            mBase->mLayer->mSharedWinnerID = postID;
+         }
+         //mLastPreSpikeTime = mLastPostSpikeTime = -1000;
+      }
    }
 }
 
