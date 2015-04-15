@@ -33,10 +33,10 @@ public:
    void wakeup();
 
    void update();
-   void addInputCurrent(int time, float current);
+   void addInputCurrent(float time, float current);
    void propagateSpike();
    template <int SIZE>
-   void addStimulus(int (&stimuliTimes)[SIZE]);
+   void addStimulus(float (&stimuliTimes)[SIZE]);
    bool isConnectedTo(Neuron* n);
    int  getID() { return mID; }
    int  getLayerID();
@@ -64,10 +64,11 @@ protected:
    size_t                        mPostSynapsesNum;
    std::vector<Synapse*>         mPreSynapses;
    size_t                        mPreSynapsesNum;
-   std::vector<int>              mSpikeTimes;
+   std::vector<float>            mSpikeTimes;
    Logger                        mLogger;
    bool                          mLogPotentialFlag;
-   const int*                    mTime;
+   const float*                  mTime;
+   const float*                  mTimeStep;
 
    //int                          mLastLoggedIndex;
    std::vector<CurrentInfo>      mInputCurrentQueue;
@@ -83,8 +84,8 @@ protected:
 
 struct CurrentInfo
 {
-   CurrentInfo(int time, float current) : fireTime(time), currentToAdd(current){};
-   int      fireTime;
+   CurrentInfo(float time, float current) : fireTime(time), currentToAdd(current){};
+   float    fireTime;
    float    currentToAdd;
 
    template <class Archive>

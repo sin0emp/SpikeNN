@@ -7,15 +7,17 @@
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/serialization/vector.hpp>
 
-Network::Network()
+Network::Network(float timeStep)
 {
    initialize();
+   mTimeStep = timeStep;
    srand(time(NULL));
 }
 
 void Network::initialize()
 {
    mTime = 0;
+   mTimeStep = 0.2;
    mLastLayerID = -1;
    mLastSynapseID = -1;
    mLogger.set("Network");
@@ -66,12 +68,11 @@ void Network::runNetwork(int maxTime)
    clock_t start = clock();
    mLogger.set("Network");
    std::cout << "Network started." << std::endl;
-   for (mTime = 1; mTime <= maxTime; ++mTime)
+   
+   for (mTime = mTimeStep; mTime <= maxTime; mTime+=mTimeStep)
    {
-      if (mTime % 1000 == 0)
-      {
+      if (std::fmod(mTime, 1000) < mTimeStep)
          std::cout << "mTime = " << mTime << std::endl;
-      }
 
       //call layers to update in a random order
       //std::vector<std::size_t> order = SHUFFLE(mLayers.size());
@@ -150,7 +151,7 @@ ConnectionInfo Network::defaultConnectingPattern(int sourceIndex, int destIndex)
       return ConnectionInfo(false);
 }
 
-std::vector<InputInformation> Network::defaultInputPattern(int time)
+std::vector<InputInformation> Network::defaultInputPattern(float time)
 {
    return std::vector<InputInformation>();
 }
@@ -181,7 +182,8 @@ void Network::serialize(Archive &ar, const unsigned int version)
       & mInMaxWeight & mInMaxRandWeight
       & mInMinRandWeight & mMaxRandDelay
       & mMinRandDelay & mMinInputCurrent
-      & mMaxInputCurrent & mDefaultConnectionProbability;
+      & mMaxInputCurrent & mDefaultConnectionProbability
+      & mTimeStep;
 }
 
 template void Network::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);

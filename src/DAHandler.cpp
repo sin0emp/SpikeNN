@@ -12,17 +12,17 @@ DAHandler::DAHandler()
    mD = 0;
    mDMultiplier = 0.995f;
    //mLastPostRewarded = mLastPreRewarded = -1000;
-   /*mG1SpikeNum = mG2SpikeNum =*/ mTimeStep = mGSpikeNum = 0;
+   /*mG1SpikeNum = mG2SpikeNum =*/ mCheckTimeStep = mGSpikeNum = 0;
    //mG1WinFlag = mG2WinFlag = false;
    //mGuessedRight = 0;
    //mLogger.set("DA");
 }
 
-void DAHandler::set(Layer* layer, RewardChecker* rewardChecker, int representClass, int timestep)
+void DAHandler::set(Layer* layer, RewardChecker* rewardChecker, int representClass, int checkTimeStep)
 {
    mLayer = layer;
    mRewartChecker = rewardChecker;
-   mTimeStep = timestep;
+   mCheckTimeStep = checkTimeStep;
    mRepresentClass = representClass;
    mRewartChecker->addDAHandler(this);
 }
@@ -31,10 +31,10 @@ void DAHandler::update()
 {
    mD *= mDMultiplier;
    //checkForReward();
-   int t = *(mLayer->mTime);
+   float t = *(mLayer->mTime);
 
    //TODO: nasty! just think about something more general!
-   if (t % mTimeStep == 0)
+   if (std::fmod(t, mCheckTimeStep) < *(mLayer->mTimeStep))
    {
       VisualNetwork* vn = static_cast<VisualNetwork*> (mLayer->mNetwork);
       std::string fn = vn->mImageFileNames[vn->mCurrentImageIndex];
@@ -63,7 +63,7 @@ void DAHandler::update()
       }
    }
 
-   if (t % 1000 == 0)
+   if (std::fmod(t, 1000) < *(mLayer->mTimeStep))
    {
       std::cout << mRewartChecker->mWinTimes << " right guesses.\n";
       mRewartChecker->mWinTimes = 0;
@@ -117,7 +117,7 @@ void DAHandler::serialize(Archive &ar, const unsigned int version)
 {
    ar & mD & mDMultiplier
       & mLayer & AcceptableDuration
-      & mTimeStep & mRewartChecker;
+      & mCheckTimeStep & mRewartChecker;
 }
 
 template void DAHandler::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);

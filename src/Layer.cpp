@@ -22,6 +22,7 @@ void Layer::initialize()
 {
    mDAHandler = 0;
    mTime = 0;
+   mTimeStep = 0;
    mInputPatternMode = NO_INPUT;
    mInputPattern = 0;
    mLockExLearningFlag = mLockInLearningFlag = false;
@@ -51,6 +52,7 @@ void Layer::initialize()
 void Layer::wakeup()
 {
    mTime = mNetwork->getPointerToTime();
+   mTimeStep = mNetwork->getPointerToTimeStep();
    updateLearningFlags();
 
    for (size_t i = 0; i < mNeurons.size(); ++i)
@@ -84,6 +86,8 @@ void Layer::update()
       mDAHandler->update();
 
    size_t k;
+
+   if (std::fmod(*mTime, 1) < *mTimeStep)
    switch (mInputPatternMode)
    {
    case NO_INPUT:
@@ -154,13 +158,13 @@ void Layer::update()
    }
 
    if (mSharedConnectionFlag)
-      if (*mTime % mSharedConnectionTimeStep == 0)
+      if (fmod(*mTime, mSharedConnectionTimeStep) < *mTimeStep)
       {
          mSharedWinnerID = -1;
       }
 
    if (mExShouldLearn || mInShouldLearn)
-      if (*mTime % mSTDPTimeStep == 0)
+      if (fmod(*mTime, mSTDPTimeStep) < *mTimeStep)
       {
          for (size_t i = 0; i < mSynapses.size(); ++i)
          {
@@ -178,13 +182,13 @@ void Layer::update()
       }
 
    if (mLogActivityFlag)
-      if (*mTime % 60000 == 0)
+      if (fmod(*mTime, 60000) < *mTimeStep)
          flushActivity();
 }
 
 void Layer::flushActivity()
 {
-   int min = std::ceil((float)(*mTime) / 60000);
+   int min = std::floor(*mTime / 60000);
    int startmin = (min-1) * 60000;
    mLogger.set("Layer" + Logger::toString((float)mID) + "Min" + Logger::toString((float)(min)));
 

@@ -53,9 +53,9 @@ struct Point2D
 
 struct PixelInputInformation
 {
-   PixelInputInformation(Point2D pixel, int time) : mPixel(pixel), mTime(time) {}
+   PixelInputInformation(Point2D pixel, float time) : mPixel(pixel), mTime(time) {}
    Point2D mPixel;
-   int     mTime;
+   float   mTime;
 
    template <class Archive>
    void serialize(Archive &ar, const unsigned int version);
@@ -203,7 +203,7 @@ public:
    static VisualNetwork* loadNetwork(std::string path);
 
    virtual ConnectionInfo defaultConnectingPattern(int sourceIndex, int destIndex);
-   virtual std::vector<InputInformation> defaultInputPattern(int time);
+   virtual std::vector<InputInformation> defaultInputPattern(float time);
    virtual std::string getAddress(int slayer, int sneuron = -1, int dlayer = -1, int dneuron = -1);
 
 private:

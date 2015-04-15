@@ -27,7 +27,7 @@ class MODULE_EXPORT Network
    friend class boost::serialization::access;
    friend class DAHandler;
 public:
-   Network();
+   Network(float timeStep = 0.2);
    virtual ~Network();
 
    int  addLayer(bool shouldLearn = true, bool isContainer = false);
@@ -72,9 +72,12 @@ public:
    { mLayers[layer]->setSharedWeights(bases); }
 
    //Network control methods
-   int  getTime() { return mTime; }
-   const int* getPointerToTime() { return &mTime; }
-   int  getNextSynapseID() { return ++mLastSynapseID; }
+   int          getTime() { return mTime; }
+   float        getTimeStep() { return mTimeStep; }
+   const float* getPointerToTime() { return &mTime; }
+   const float* getPointerToTimeStep() { return &mTimeStep; }
+   int          getNextSynapseID() { return ++mLastSynapseID; }
+
    void runNetwork(int maxTime);
    void logLayerActivity(int layer);
    void logSettings();
@@ -166,14 +169,15 @@ public:
    { return mLayers[destLayer]->getResponseFromLayer(sourceLayer, destNeuron); }
 
    virtual ConnectionInfo defaultConnectingPattern(int sourceIndex, int destIndex);
-   virtual std::vector<InputInformation> defaultInputPattern(int time);
+   virtual std::vector<InputInformation> defaultInputPattern(float time);
    virtual std::string getAddress(int slayer, int sneuron = -1, int dlayer = -1, int dneuron = -1);
 
    void saveNetwork(std::string path);
    static Network* loadNetwork(std::string path);
 
 protected:
-   int                  mTime;
+   float                mTime;
+   float                mTimeStep;
    std::vector<Layer*>  mLayers;
    int                  mLastLayerID;
    int                  mLastSynapseID;

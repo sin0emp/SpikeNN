@@ -89,9 +89,9 @@ private:
    Neuron*              mPostNeuron;
    Logger               mLogger;
    bool                 mLogWeightFlag;
-   int                  mLastPostSpikeTime;     //pre and post neuron spikes used for STDP learning algorithm
-   int                  mLastPreSpikeTime;
-   const int*           mTime;
+   float                mLastPostSpikeTime;     //pre and post neuron spikes used for STDP learning algorithm
+   float                mLastPreSpikeTime;
+   const float*         mTime;
 
    void  stepIncreaseSTDP();
 

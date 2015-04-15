@@ -25,7 +25,7 @@ class MODULE_EXPORT DAHandler
    friend class RewardChecker;
 public:
    DAHandler();
-   void set(Layer* layer, RewardChecker* rewardChecker, int representClass, int timeStep);
+   void set(Layer* layer, RewardChecker* rewardChecker, int representClass, int checkTimeStep);
    
    float getDAConcentraion() { return mD; }
    void  notifyOfSpike() { /*(group == 1)? ++mG1SpikeNum : ++mG2SpikeNum;*/ ++mGSpikeNum; }
@@ -42,7 +42,7 @@ private:
    int   mGSpikeNum;
    int   mRepresentClass;
 
-   int   mTimeStep;
+   int   mCheckTimeStep;
    //bool  mG1WinFlag;
    //bool  mG2WinFlag;
    std::vector<int> mRewardTimes;

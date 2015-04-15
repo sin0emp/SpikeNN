@@ -41,8 +41,8 @@ float IzhikevichNeuron::updatePotential()
 
    //for better approximation, time step is assumed to be 0.5
    //time step = 0.2 => better approximation??
-   for (int i=0; i<5; ++i)
-   {
+   //for (int i=0; i<5; ++i)
+   //{
       if (mV >= 30)
       {
          mV = mC;
@@ -50,9 +50,9 @@ float IzhikevichNeuron::updatePotential()
          propagateSpike();
       }
 
-      mV += 0.2f * (mV * (0.04f * mV + 5) + 140 - mU);
-      mU += 0.2f * (mA * (mB * mV - mU));
-   }
+      mV += *mTimeStep * (mV * (0.04f * mV + 5) + 140 - mU);
+      mU += *mTimeStep * (mA * (mB * mV - mU));
+   //}
 
    //mV += 0.5f * (mV * (0.04f * mV + 5) + 140 - mU + mInputCurrent);
    //mV += 0.5f * (mV * (0.04f * mV + 5) + 140 - mU + mInputCurrent);

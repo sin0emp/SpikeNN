@@ -7,6 +7,8 @@ if(WIN32)
    set(Boost_USE_STATIC_LIBS ON)
 endif(WIN32)
 
+set(Boost_USE_MULTITHREADED ON)
+
 find_package(Boost COMPONENTS system filesystem serialization REQUIRED)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include

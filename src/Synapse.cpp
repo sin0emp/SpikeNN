@@ -17,7 +17,7 @@ SynapseBase::SynapseBase(Layer* layer, float weight, int delay, ChannelType type
 
 void SynapseBase::initialize()
 {
-	mC = 0;
+   mC = 0;
 }
 
 void SynapseBase::stepIncreaseSTDP(int dt)

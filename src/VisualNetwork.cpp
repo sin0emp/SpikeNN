@@ -171,9 +171,10 @@ ConnectionInfo VisualNetwork::defaultConnectingPattern(int sourceIndex, int dest
    }
 }
 
-std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
+std::vector<InputInformation> VisualNetwork::defaultInputPattern(float time)
 {
-   if (time % mPresentTimeStep == 1)
+   float reltime = fmod(time, mPresentTimeStep);
+   if (reltime >= mTimeStep && reltime < 2*mTimeStep)
    {
       //for (size_t i = 0; i < mLayers.size(); ++i)
       //   mLayers[i]->restNeurons();
@@ -185,7 +186,7 @@ std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
       ++mCurrentImageIndex;
       if (mCurrentImageIndex == mImageFileNames.size()) mCurrentImageIndex = 0;
 
-      mLogger.writeLine(Logger::toString((float)time) + " " + mImageFileNames[mCurrentImageIndex]);
+      mLogger.writeLine(Logger::toString(time) + " " + mImageFileNames[mCurrentImageIndex]);
       //++mCurrentImageIndex;
       //if (mCurrentImageIndex >= mImageFileNames.size()) mCurrentImageIndex = 0;
       mInputInfos.clear();
@@ -200,7 +201,7 @@ std::vector<InputInformation> VisualNetwork::defaultInputPattern(int time)
             float gray = (float)(0.21*pix.Red + 0.72*pix.Green + 0.07*pix.Blue);
             if (gray < 240) //a threshold for color strength which leads to a spikes
             {
-               int timeToAdd = time + (int)(10*(gray/255)+0.5);
+               int timeToAdd = time + 10*(gray/255);
                while (timeToAdd < time + mPresentTimeStep)
                {
                   PixelInputInformation info(Point2D(i,j), timeToAdd);

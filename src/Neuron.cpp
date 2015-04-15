@@ -22,6 +22,7 @@ Neuron::Neuron(Layer* layer, int ID, ChannelType type)
 void Neuron::wakeup()
 {
    mTime = mLayer->getPointerToTime();
+   mTimeStep = mLayer->getPointerToTimeStep();
    rest();
    for (size_t i = 0; i < mPreSynapses.size(); ++i)
       mPreSynapses[i]->wakeup();
@@ -52,7 +53,7 @@ void Neuron::propagateSpike()
       mPreSynapses[i]->setPostSpikeTime();
 }
 
-void Neuron::addInputCurrent(int time, float current)
+void Neuron::addInputCurrent(float time, float current)
 {
    //sort calls according to their time using insertion sort
    //begin checking from the end of vector because the call 
@@ -100,7 +101,7 @@ void Neuron::update()
    mInputCurrent = 0; //reset input current for the next cycle
 
    if (mLogPotentialFlag)
-      mLogger.writeLine(Logger::toString((float)*mTime) + " " + Logger::toString(potential));
+      mLogger.writeLine(Logger::toString(*mTime) + " " + Logger::toString(potential));
 }
 
 bool Neuron::isConnectedTo(Neuron* n)
@@ -117,7 +118,7 @@ std::string Neuron::getSpikeTimes()
    std::string s;
    
    for (size_t i = 0; i < mSpikeTimes.size(); ++i)
-      s += (Logger::toString((float)(mSpikeTimes[i] % 60000)) + " " + Logger::toString((float)mID) + "\n");
+      s += (Logger::toString(std::fmod(mSpikeTimes[i], 60000)) + " " + Logger::toString((float)mID) + "\n");
 
    mSpikeTimes.clear();
 

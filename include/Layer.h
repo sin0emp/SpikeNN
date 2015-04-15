@@ -50,20 +50,21 @@ public:
    //void logPostSynapseWeight(int neuron, std::string directory = "");
    //void logPreSynapseWeight(int neuron, std::string directory = "");
 
-   int  getTime() { return *mTime; }
-   bool getContainerFlag() { return mContainerFlag; }
-   void setContainerFlag(bool flag) { mContainerFlag = flag; }
-   int  getNeuronsNumber() { return mNeurons.size(); }
-   bool getExcitatoryLearningFlag() { return mExLearningFlag; }
-   void setExcitatoryLearningFlag(bool flag) { mExLearningFlag = flag; updateLearningFlags(); }
-   bool getInhibitoryLearningFlag() { return mInLearningFlag; }
-   void setInhibitoryLearningFlag(bool flag) { mInLearningFlag = flag; updateLearningFlags(); }
-   bool getLockExcitatoryLearningFlag() { return mLockExLearningFlag; }
-   void setExcitatoryLearningLock(bool flag) { mLockExLearningFlag = flag; updateLearningFlags(); }
-   bool getLockInhibitoryLearningFlag() { return mLockInLearningFlag; }
-   void setInhibitoryLearningLock(bool flag) { mLockInLearningFlag = flag; updateLearningFlags(); }
-   bool shouldExcitatoryLearn() { return mExShouldLearn; }
-   bool shouldInhibitoryLearn() { return mInShouldLearn; }
+   float getTime() { return *mTime; }
+   float getTimeStep() {return *mTimeStep; }
+   bool  getContainerFlag() { return mContainerFlag; }
+   void  setContainerFlag(bool flag) { mContainerFlag = flag; }
+   int   getNeuronsNumber() { return mNeurons.size(); }
+   bool  getExcitatoryLearningFlag() { return mExLearningFlag; }
+   void  setExcitatoryLearningFlag(bool flag) { mExLearningFlag = flag; updateLearningFlags(); }
+   bool  getInhibitoryLearningFlag() { return mInLearningFlag; }
+   void  setInhibitoryLearningFlag(bool flag) { mInLearningFlag = flag; updateLearningFlags(); }
+   bool  getLockExcitatoryLearningFlag() { return mLockExLearningFlag; }
+   void  setExcitatoryLearningLock(bool flag) { mLockExLearningFlag = flag; updateLearningFlags(); }
+   bool  getLockInhibitoryLearningFlag() { return mLockInLearningFlag; }
+   void  setInhibitoryLearningLock(bool flag) { mLockInLearningFlag = flag; updateLearningFlags(); }
+   bool  shouldExcitatoryLearn() { return mExShouldLearn; }
+   bool  shouldInhibitoryLearn() { return mInShouldLearn; }
    
    virtual void recordSpike(int NeuronID); //virtual for DAHandler notifications
    
@@ -99,7 +100,8 @@ public:
    int   getNextSynapseID();
    //float getDAConcentraion() {return (mDAHandler)?mDAHandler->getDAConcentraion():-1; }
    //void addDAModule();
-   const int* getPointerToTime() { return mTime; }
+   const float* getPointerToTime() { return mTime; }
+   const float* getPointerToTimeStep() { return mTimeStep; }
    void  restNeurons();
    std::string getAddress(int slayer, int sneuron = -1, int dlayer = -1, int dneuron = -1);
    std::vector<float> getResponseFromLayer(int sourceLayer, int destNeuron)
@@ -132,7 +134,8 @@ public:
 protected:
    Network*                        mNetwork;
    DAHandler*                      mDAHandler;
-   const int*                      mTime;
+   const float*                    mTime;
+   const float*                    mTimeStep;
    int                             mID;
    std::vector<Neuron*>            mNeurons;
    std::vector<SynapseBase*>       mSynapses;
