@@ -28,7 +28,6 @@ struct STDPchangeRequest;
 class MODULE_EXPORT Layer
 {
    friend class boost::serialization::access;
-   friend class DAHandler;
 public:
    Layer(Network* net, int ID, bool shouldLearn = true, bool isContainer = false);
    Layer() { initialize(); } //used only by boost::serialization
@@ -37,19 +36,20 @@ public:
 
    template <class NeutonTemp>
    void addNeuron(int neuronNum, ChannelType type = EXCITATORY, ParameterContainer* params = 0);
-   void setInputPattern(InputPatternMode mode, std::vector<InputInformation> (*pattern)(int))
+   void setInputPattern(InputPatternMode mode, std::vector<InputInformation> (*pattern)(float))
    { mInputPatternMode = mode; mInputPattern = pattern; }
 
    void update();
    std::vector<int> getWeightFrequencies();
 
-   //void logWeight(bool (*pattern)(int) = 0);
+   void logWeight(bool (*pattern)(int) = 0);
    //void logWeight(bool (*pattern)(int, int, int, int) = 0);
    void logPotential(bool (*pattern)(int) = 0);
    void logActivity() { mLogActivityFlag = true; }
    //void logPostSynapseWeight(int neuron, std::string directory = "");
    //void logPreSynapseWeight(int neuron, std::string directory = "");
 
+   const Synapse* getSynapse(int synapseID);
    float getTime() { return *mTime; }
    float getTimeStep() {return *mTimeStep; }
    bool  getContainerFlag() { return mContainerFlag; }
@@ -99,7 +99,7 @@ public:
    bool  getSharedConnectionFlag() { return mSharedConnectionFlag; }
    int   getNextSynapseID();
    //float getDAConcentraion() {return (mDAHandler)?mDAHandler->getDAConcentraion():-1; }
-   //void addDAModule();
+   void addDAModule(DAHandler* handler) { mDAHandler = handler; handler->setLayer(this); };
    const float* getPointerToTime() { return mTime; }
    const float* getPointerToTimeStep() { return mTimeStep; }
    void  restNeurons();
@@ -138,10 +138,11 @@ protected:
    const float*                    mTimeStep;
    int                             mID;
    std::vector<Neuron*>            mNeurons;
-   std::vector<SynapseBase*>       mSynapses;
+   std::vector<Synapse*>           mSynapses;
+   std::vector<Synapse*>           mSynapsesToLog;
    std::vector<SpikeInfo>          mSpikes;
    InputPatternMode                mInputPatternMode;
-   std::vector<InputInformation> (*mInputPattern)(int);
+   std::vector<InputInformation> (*mInputPattern)(float);
    bool                            mSharedConnectionFlag;
    std::vector<SynapseBase*>       mSharedConnections;
    int                             mSharedConnectionTimeStep;  //a time step which determines how much time
@@ -204,8 +205,8 @@ void Layer::addNeuron(int neuronNum, ChannelType type, ParameterContainer* param
 
 struct SpikeInfo
 {
-   int mNeuronID;
-   int mTime;
+   int   mNeuronID;
+   float mTime;
 };
 
 struct STDPchangeRequest

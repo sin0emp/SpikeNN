@@ -57,6 +57,9 @@ void Layer::wakeup()
 
    for (size_t i = 0; i < mNeurons.size(); ++i)
       mNeurons[i]->wakeup();
+
+   if (mDAHandler)
+      mDAHandler->wakeup();
 }
 
 Layer::~Layer()
@@ -73,12 +76,6 @@ Layer::~Layer()
    if(mDAHandler)
       delete mDAHandler;
 }
-
-//void Layer::addDAModule()
-//{
-//   mDAHandler = new DAHandler();
-//   mDAHandler->set(this);
-//}
 
 void Layer::update()
 {
@@ -166,18 +163,28 @@ void Layer::update()
    if (mExShouldLearn || mInShouldLearn)
       if (fmod(*mTime, mSTDPTimeStep) < *mTimeStep)
       {
-         for (size_t i = 0; i < mSynapses.size(); ++i)
+         if (mSharedConnectionFlag)
          {
-            if((mSynapses[i]->getType() == EXCITATORY && mExShouldLearn) ||
-               (mSynapses[i]->getType() == INHIBITORY && mInShouldLearn))
-               mSynapses[i]->updateWeight();
+            for (size_t i = 0; i < mSharedConnections.size(); ++i)
+            {
+               if ((mSharedConnections[i]->getType() == EXCITATORY && mExShouldLearn) ||
+                  (mSharedConnections[i]->getType() == INHIBITORY && mInShouldLearn))
+                  mSharedConnections[i]->updateWeight();
+            }
+         }
+         else
+         {
+            for (size_t i = 0; i < mSynapses.size(); ++i)
+            {
+               if ((mSynapses[i]->getType() == EXCITATORY && mExShouldLearn) ||
+                  (mSynapses[i]->getType() == INHIBITORY && mInShouldLearn))
+                  mSynapses[i]->mBase->updateWeight();
+            }
          }
 
-         for (size_t i = 0; i < mSharedConnections.size(); ++i)
+         for (size_t i = 0; i < mSynapsesToLog.size(); ++i)
          {
-            if((mSharedConnections[i]->getType() == EXCITATORY && mExShouldLearn) ||
-               (mSharedConnections[i]->getType() == INHIBITORY && mInShouldLearn))
-               mSharedConnections[i]->updateWeight();
+            mSynapsesToLog[i]->logCurrentWeight();
          }
       }
 
@@ -188,7 +195,7 @@ void Layer::update()
 
 void Layer::flushActivity()
 {
-   int min = std::floor(*mTime / 60000);
+   int min = (int)std::floor(*mTime / 60000);
    int startmin = (min-1) * 60000;
    mLogger.set("Layer" + Logger::toString((float)mID) + "Min" + Logger::toString((float)(min)));
 
@@ -217,14 +224,14 @@ void Layer::makeConnection(Layer* source, Layer* dest, float synapseProb, float 
             if (source->mNeurons[i]->getType() == EXCITATORY)
             {
                Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], excitatoryWeight, excitatoryDelay);
-               dest->mSynapses.push_back(syn->getBase());
+               dest->mSynapses.push_back(syn);
                //if (source != dest)
                //   dest->mSynapses.push_back(syn);
             }
             else
             {
                Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], inhibitoryWeight, inhibitoryDelay);
-               dest->mSynapses.push_back(syn->getBase());
+               dest->mSynapses.push_back(syn);
                //if (source != dest)
                //   dest->mSynapses.push_back(syn);
             }
@@ -253,14 +260,14 @@ void Layer::makeConnection(Layer* source, Layer* dest,
          if (source->mNeurons[i]->getType() == EXCITATORY)
          {
             Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[k], excitatoryWeight, excitatoryDelay);
-            dest->mSynapses.push_back(syn->getBase());
+            dest->mSynapses.push_back(syn);
             //if (source != dest)
             //   dest->mSynapses.push_back(syn);
          }
          else
          {
             Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[k], inhibitoryWeight, inhibitoryDelay);
-            dest->mSynapses.push_back(syn->getBase());
+            dest->mSynapses.push_back(syn);
             //if (source != dest)
             //   dest->mSynapses.push_back(syn);
          }
@@ -277,7 +284,7 @@ void Layer::makeConnection(Layer* source, Layer* dest, ConnectionInfo (*pattern)
          if (info.mConnectFlag)
          {
             Synapse* syn = Neuron::makeConnection(source->mNeurons[i], dest->mNeurons[j], info.mWeight, info.mDelay, info.mType);
-            dest->mSynapses.push_back(syn->getBase());
+            dest->mSynapses.push_back(syn);
 
             //is it right??
             //if (source != dest)
@@ -286,13 +293,15 @@ void Layer::makeConnection(Layer* source, Layer* dest, ConnectionInfo (*pattern)
       }
 }
 
-//void Layer::logWeight(bool (*pattern)(int))
-//{
-//   for (size_t i = 0; i < mSynapses.size(); ++i)
-//   {
-//      mSynapses[i]->logWeight(pattern);
-//   }
-//}
+void Layer::logWeight(bool (*pattern)(int))
+{
+   for (size_t i = 0; i < mSynapses.size(); ++i)
+   {
+      if ((*pattern)(mSynapses[i]->getID()))
+         mSynapsesToLog.push_back(mSynapses[i]);
+   }
+}
+
 //
 //void Layer::logWeight(bool (*pattern)(int, int, int, int))
 //{
@@ -340,6 +349,20 @@ void Layer::recordSpike(int NeuronID)
       SpikeInfo s = {NeuronID, mNetwork->getTime()};
       mSpikes.push_back(s);
    }
+   
+   if (mDAHandler)
+      mDAHandler->notifyOfSpike(NeuronID);
+}
+
+const Synapse* Layer::getSynapse(int synapseID)
+{
+   for (size_t i = 0; i < mSynapses.size(); ++i)
+   {
+      if (mSynapses[i]->getID() == synapseID)
+         return mSynapses[i];
+   }
+
+   return 0;
 }
 
 int Layer::getNextSynapseID()

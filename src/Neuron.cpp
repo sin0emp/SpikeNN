@@ -16,7 +16,6 @@ Neuron::Neuron(Layer* layer, int ID, ChannelType type)
    mType = type;
    mID = ID;
    wakeup();
-   mLogger.set(mLayer->getAddress(mLayer->getID(), mID));
 }
 
 void Neuron::wakeup()
@@ -26,6 +25,8 @@ void Neuron::wakeup()
    rest();
    for (size_t i = 0; i < mPreSynapses.size(); ++i)
       mPreSynapses[i]->wakeup();
+
+   mLogger.set(mLayer->getAddress(mLayer->getID(), mID));
 }
 
 void Neuron::initialize()
@@ -118,7 +119,7 @@ std::string Neuron::getSpikeTimes()
    std::string s;
    
    for (size_t i = 0; i < mSpikeTimes.size(); ++i)
-      s += (Logger::toString(std::fmod(mSpikeTimes[i], 60000)) + " " + Logger::toString((float)mID) + "\n");
+      s += (Logger::toString((float)std::fmod(mSpikeTimes[i], 60000)) + " " + Logger::toString((float)mID) + "\n");
 
    mSpikeTimes.clear();
 

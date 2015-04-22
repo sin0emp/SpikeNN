@@ -20,12 +20,12 @@ void SynapseBase::initialize()
    mC = 0;
 }
 
-void SynapseBase::stepIncreaseSTDP(int dt)
+void SynapseBase::stepIncreaseSTDP(float dt)
 {
    if ((mType == EXCITATORY && mLayer->shouldExcitatoryLearn())||
        (mType == INHIBITORY && mLayer->shouldInhibitoryLearn()))
    {
-      int t = dt-mDelay;
+      float t = dt-mDelay;
       if(t >= 0)
          mC += (mLayer->getAP() * std::exp(-t / mLayer->getTaoP()));
       else
@@ -70,7 +70,6 @@ Synapse::Synapse(Layer* layer, Neuron* pre, Neuron* post, ChannelType type, floa
    mBase = new SynapseBase(layer, weight, delay, type);
    mID = layer->getNextSynapseID();
    wakeup();
-   mLogger.set(mBase->mLayer->getAddress(pre->getLayerID(), pre->getID(), post->getLayerID(), post->getID()));
 }
 
 Synapse::~Synapse()
@@ -82,6 +81,8 @@ Synapse::~Synapse()
 void Synapse::wakeup()
 {
    mTime = mBase->mLayer->getPointerToTime();
+   mLogger.set(mBase->mLayer->getAddress(mPreNeuron->getLayerID(), mPreNeuron->getID(),
+               mPostNeuron->getLayerID(), mPostNeuron->getID()));
 }
 
 void Synapse::initialize()
@@ -149,6 +150,16 @@ void Synapse::setPostSpikeTime()
          //mLastPreSpikeTime = mLastPostSpikeTime = -1000;
       }
    }
+}
+
+inline int Synapse::getPreNeuronID() const
+{
+   return mPreNeuron->getID();
+}
+
+inline int Synapse::getPostNeuronID() const
+{
+   return mPostNeuron->getID();
 }
 
 //void Synapse::addWeightLog(std::string directory)

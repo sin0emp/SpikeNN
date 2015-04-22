@@ -16,8 +16,8 @@ Network::Network(float timeStep)
 
 void Network::initialize()
 {
-   mTime = 0;
-   mTimeStep = 0.2;
+   mTime = 0.0f;
+   mTimeStep = 0.2f;
    mLastLayerID = -1;
    mLastSynapseID = -1;
    mLogger.set("Network");
@@ -133,13 +133,14 @@ void Network::logSettings()
 //   }
 //}
 //
-//void Network::logSynapseWeight(bool (*pattern)(int))
-//{
-//   for (size_t i = 0; i < mLayers.size(); ++i)
-//   {
-//      mLayers[i]->logWeight(pattern);
-//   }
-//}
+
+void Network::logSynapseWeight(bool (*pattern)(int))
+{
+   for (size_t i = 0; i < mLayers.size(); ++i)
+   {
+      mLayers[i]->logWeight(pattern);
+   }
+}
 
 ConnectionInfo Network::defaultConnectingPattern(int sourceIndex, int destIndex)
 {
@@ -167,6 +168,18 @@ std::string Network::getAddress(int slayer, int sneuron, int dlayer, int dneuron
       s += "-TO-l" + Logger::toString((float)dlayer) + "n" + Logger::toString((float)dneuron);
 
    return s;
+}
+
+const Synapse* Network::getSynapse(int synapseID)
+{
+   for (size_t i = 0; i < mLayers.size(); ++i)
+   {
+      const Synapse* syn = mLayers[i]->getSynapse(synapseID);
+      if (syn)
+         return syn;
+   }
+
+   return 0;
 }
 
 template <class Archive>
@@ -206,7 +219,7 @@ Network* Network::loadNetwork(std::string path)
     Network* net = new Network();
     oa & *net;
 
-    for (size_t i = 0; i < net->mLastLayerID; ++i)
+    for (size_t i = 0; (int)i < net->mLastLayerID; ++i)
        net->mLayers[i]->wakeup();
 
    file.close();

@@ -1,3 +1,9 @@
+/********************************************************************************************
+*  This example creates and runs the network designed by E. M. Izhikevich in 2007:          *
+*  - "Solving the distal reward problem through linkage of STDP anddopamine signaling.      *
+*    " Cerebral cortex 17.10 (2007): 2443-2452.                                             *
+*********************************************************************************************/
+
 #include <Network.h>
 
 bool firstSynapse(int id)
@@ -17,7 +23,9 @@ int main()
    net.setCurrentParameters(l, -6.5, 6.5);
    net.setBoundingParameters(l, 4, 4, 0, 4, 0, 4, 0, 20);
    net.makeConnection(l, l, 100, 1.0f, 1.0f, CHOOSE_RANDOM, 1);
-   net.addDAModule();
+   IzhikevichDAHandler* dah = new IzhikevichDAHandler();
+   dah->setSynapse(net.getSynapse(0));
+   net.addDAModule(l, dah);
    net.logSynapseWeight(&firstSynapse);
    net.setInputPattern(l, ALL_RANDOM_CURRENT);
    net.setIInhibitoryLearningFlag(l, false);

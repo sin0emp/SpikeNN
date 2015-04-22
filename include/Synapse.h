@@ -25,10 +25,11 @@ class Synapse;
 // this struct is implimented so that neurons can share some connection informations
 struct MODULE_EXPORT SynapseBase
 {
+   //Synapse base can be either belong to a synapse or a layer (for shared weight mode)
    friend class Synapse;
-   friend class boost::serialization::access;
-   friend class DAHandler;
    friend class Layer;
+   friend class boost::serialization::access;
+
 public:
    SynapseBase(Layer* layer, float weight, int delay, ChannelType type = EXCITATORY);
    SynapseBase(){ initialize(); } //used only by boost::serialization
@@ -36,7 +37,7 @@ public:
    float getWeight() { return mWeight; }
    ChannelType getType() { return mType; }
    void updateWeight();
-   void stepIncreaseSTDP(int dt);
+   void stepIncreaseSTDP(float dt);
 
 private:
    Layer*          mLayer;
@@ -54,7 +55,6 @@ private:
 class MODULE_EXPORT Synapse
 {
    friend class boost::serialization::access;
-   friend class DAHandler;
 public:
    Synapse(Layer* layer, Neuron* pre, Neuron* post, ChannelType type = EXCITATORY,
            float weight = -1, int delay = -1);
@@ -67,8 +67,13 @@ public:
    bool isFrom(Neuron* n) {return n == mPreNeuron;}
    bool isConnectedTo(Neuron* n) {return n == mPostNeuron;}
    bool isFromLayer(int layerIndex);
-   float getWeight() { return mBase->mWeight; }
+   int  getID() { return mID; }
+   int  getPreNeuronID() const;
+   int  getPostNeuronID() const;
+   float getWeight() const { return mBase->mWeight; }
+   int   getDelay() const { return mBase->mDelay; }
    ChannelType getType() { return mBase->mType; }
+   void logCurrentWeight() { mLogger.writeLine(Logger::toString(*mTime) + " " + Logger::toString(mBase->mWeight)); }
    //void addWeightLog(std::string directory = "");
    //void logWeight(bool (*pattern)(int) = 0);
    //void logWeight(bool (*pattern)(int, int, int, int) = 0);

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 
 project (SpikeNN)
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
 
 if(WIN32)
    set(Boost_USE_STATIC_LIBS ON)

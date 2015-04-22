@@ -22,62 +22,55 @@ class RewardChecker;
 class MODULE_EXPORT DAHandler
 {
    friend class boost::serialization::access;
-   friend class RewardChecker;
 public:
-   DAHandler();
-   void set(Layer* layer, RewardChecker* rewardChecker, int representClass, int checkTimeStep);
-   
+   DAHandler(int checkTimeStep);
+   DAHandler() { initialize(); }
+   void initialize();
+   void wakeup();
+
+   void setLayer(Layer* layer) { mLayer = layer; wakeup(); }
    float getDAConcentraion() { return mD; }
-   void  notifyOfSpike() { /*(group == 1)? ++mG1SpikeNum : ++mG2SpikeNum;*/ ++mGSpikeNum; }
-
+   virtual void notifyOfSpike (int neuronID) = 0;
+   virtual float checkForReward() = 0;
    void  update();
-   float TauD;  //DA uptake constant
 
-private:
+protected:
    //model variables and parameters
    float mD;           //DA concentration
    float mDMultiplier;
-   //int   mG1SpikeNum;
-   //int   mG2SpikeNum;
-   int   mGSpikeNum;
-   int   mRepresentClass;
-
    int   mCheckTimeStep;
-   //bool  mG1WinFlag;
-   //bool  mG2WinFlag;
-   std::vector<int> mRewardTimes;
+   const float* mTime;
+   const float* mTimeStep;
 
-   //int mLastPreRewarded;
-   //int mLastPostRewarded;
-
-   //int mGuessedRight;
    //elements that DA module might work with
-   Layer*          mLayer;
-   RewardChecker*  mRewartChecker;
-   Logger          mLogger;
-   int AcceptableDuration;
-
-   //void  checkForReward();
+   Layer* mLayer;
+   Logger mLogger;
 
    template <class Archive>
    void serialize(Archive &ar, const unsigned int version);
 };
 
-class MODULE_EXPORT RewardChecker
+class MODULE_EXPORT IzhikevichDAHandler : public DAHandler
 {
-   friend class boost::serialization::access;
-   friend class DAHandler;
 public:
-   RewardChecker() {mWinTimes = 0;}
-   void addDAHandler(DAHandler* dh) { mDAHandlers.push_back(dh); }
-   bool checkForReward(int fromClass);
+   IzhikevichDAHandler(int checkTimeStep);
+   IzhikevichDAHandler() { initialize(); }
 
-private:
-   std::vector<DAHandler*> mDAHandlers;
-   int mWinTimes;
+   void setSynapse(const Synapse* syn);
 
-   template <class Archive>
-   void serialize(Archive &ar, const unsigned int version);
+   virtual void notifyOfSpike(int neuronID);
+   virtual float checkForReward();
+
+protected:
+   int   mPreID;
+   int   mPostID;
+   float mLastPreFireTime;
+   float mLastPostFireTime;
+   int   mSynapseDelay;
+   int   mAcceptableDuration;
+   bool  mAnythingFired;
+
+   void initialize();
 };
 
 #endif

@@ -25,7 +25,6 @@ namespace boost{ namespace serialization { class access; } namespace archive { c
 class MODULE_EXPORT Network
 {
    friend class boost::serialization::access;
-   friend class DAHandler;
 public:
    Network(float timeStep = 0.2);
    virtual ~Network();
@@ -72,23 +71,23 @@ public:
    { mLayers[layer]->setSharedWeights(bases); }
 
    //Network control methods
-   int          getTime() { return mTime; }
-   float        getTimeStep() { return mTimeStep; }
-   const float* getPointerToTime() { return &mTime; }
-   const float* getPointerToTimeStep() { return &mTimeStep; }
-   int          getNextSynapseID() { return ++mLastSynapseID; }
-
+   float          getTime() { return mTime; }
+   float          getTimeStep() { return mTimeStep; }
+   const float*   getPointerToTime() { return &mTime; }
+   const float*   getPointerToTimeStep() { return &mTimeStep; }
+   int            getNextSynapseID() { return ++mLastSynapseID; }
+   const Synapse* getSynapse(int synapseID);
    void runNetwork(int maxTime);
    void logLayerActivity(int layer);
    void logSettings();
    //void logPostSynapseWeights(int layer, int neuron, std::string directory = "");
    //void logPreSynapseWeights(int layer, int neuron, std::string directory = "");
    //void logSynapseWeight(bool (*pattern)(int, int, int, int));
-   //void logSynapseWeight(bool (*pattern)(int));
+   void logSynapseWeight(bool (*pattern)(int));
    void logPotential(int layer, bool (*pattern)(int) = 0) { mLayers[layer]->logPotential(pattern); }
    //ývoid logPotential(int layerý, int ýneuron, std::string directoryý);ý
 
-   void setInputPattern(int layerIndex, InputPatternMode mode, std::vector<InputInformation> (*pattern)(int) = 0)
+   void setInputPattern(int layerIndex, InputPatternMode mode, std::vector<InputInformation> (*pattern)(float) = 0)
    {mLayers[layerIndex]->setInputPattern(mode, pattern);}
 
    void setSTDPParameters(int layerIndex, float CMultiplier, float AP, float AN, float decayMultiplier = 1,
@@ -167,6 +166,8 @@ public:
 
    std::vector<float> getResponseFromLayer(int sourceLayer, int destLayer, int destNeuron)
    { return mLayers[destLayer]->getResponseFromLayer(sourceLayer, destNeuron); }
+
+   void addDAModule(int layerID, DAHandler* handler) { mLayers[layerID]->addDAModule(handler);  }
 
    virtual ConnectionInfo defaultConnectingPattern(int sourceIndex, int destIndex);
    virtual std::vector<InputInformation> defaultInputPattern(float time);

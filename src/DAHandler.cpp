@@ -5,162 +5,100 @@
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/serialization/vector.hpp>
 
-DAHandler::DAHandler()
+DAHandler::DAHandler(int checkTimeStep)
 {
-   AcceptableDuration = 20;
-   TauD = 200;
-   mD = 0;
-   mDMultiplier = 0.995f;
-   //mLastPostRewarded = mLastPreRewarded = -1000;
-   /*mG1SpikeNum = mG2SpikeNum =*/ mCheckTimeStep = mGSpikeNum = 0;
-   //mG1WinFlag = mG2WinFlag = false;
-   //mGuessedRight = 0;
-   //mLogger.set("DA");
+   initialize();
+   mCheckTimeStep = checkTimeStep;
 }
 
-void DAHandler::set(Layer* layer, RewardChecker* rewardChecker, int representClass, int checkTimeStep)
+void DAHandler::initialize()
 {
-   mLayer = layer;
-   mRewartChecker = rewardChecker;
-   mCheckTimeStep = checkTimeStep;
-   mRepresentClass = representClass;
-   mRewartChecker->addDAHandler(this);
+   mD = 0;
+   mDMultiplier = 0.995f;
+   mCheckTimeStep = 1;
+   mTime = mTimeStep = 0;
+   mLayer = 0;
+}
+
+void DAHandler::wakeup()
+{
+   mTime = mLayer->getPointerToTime();
+   mTimeStep = mLayer->getPointerToTimeStep();
+   mLogger.set("DA" + mLayer->getID());
 }
 
 void DAHandler::update()
 {
-   mD *= mDMultiplier;
-   //checkForReward();
-   float t = *(mLayer->mTime);
-
    //TODO: nasty! just think about something more general!
-   if (std::fmod(t, mCheckTimeStep) < *(mLayer->mTimeStep))
+   if (std::fmod(*mTime, mCheckTimeStep) < *(mTimeStep))
    {
-      VisualNetwork* vn = static_cast<VisualNetwork*> (mLayer->mNetwork);
-      std::string fn = vn->mImageFileNames[vn->mCurrentImageIndex];
-      int target = (fn.find("non-face") != std::string::npos)? 2 : 1;
-      //std::cout<<"g1="<<mG1SpikeNum<<" g2="<<mG2SpikeNum<<std::endl;
-      //mG1WinFlag=mG2WinFlag=true;
-
-      if (mRepresentClass == target)
+      mD *= mDMultiplier;
+      float rw = checkForReward();
+      if (rw)
       {
-         bool rw = mRewartChecker->checkForReward(mRepresentClass);
-         if (rw)
-         {
-            mLogger.writeLine(Logger::toString((float)t));
-            mD += 0.5;
-            //mRewardTimes.push_back(t);
-            /*std::cout<<"\""<<fn<<"\"  won "<<" time=" << t <<"\n";*/
-         }
-         else //punishment
-         {
-            for (size_t i=0; i<mRewartChecker->mDAHandlers.size(); ++i)
-            {
-               if (mRewartChecker->mDAHandlers[i]->mRepresentClass != mRepresentClass)
-                  mD -= 0.2;
-            }
-         }
+         mLogger.writeLine(Logger::toString(*mTime));
+         mD += rw;
+      }
+   }
+}
+
+IzhikevichDAHandler::IzhikevichDAHandler(int checkTimeStep)
+   : DAHandler(checkTimeStep)
+{
+   initialize();
+}
+
+void IzhikevichDAHandler::initialize()
+{
+   mPreID = mPostID = mSynapseDelay = -1;
+   mLastPreFireTime = mLastPostFireTime = -1000;
+   mAnythingFired = false;
+   mAcceptableDuration = 20;
+}
+
+void IzhikevichDAHandler::notifyOfSpike(int neuronID)
+{
+   if (neuronID == mPreID)
+   {
+      mLastPreFireTime = *mTime;
+      mAnythingFired = true;
+   }
+   else if (neuronID == mPostID)
+   {
+      mLastPostFireTime = *mTime;
+      mAnythingFired = true;
+   }
+}
+
+float IzhikevichDAHandler::checkForReward()
+{
+   if (mAnythingFired)
+   {
+      mAnythingFired = false;
+      if (mLastPostFireTime > mLastPreFireTime + mSynapseDelay &&
+         *mTime - mLastPreFireTime < mAcceptableDuration)
+      {
+         std::cout << "Rewarded. DA = " << (mD + 0.5f) << std::endl;
+         return 0.5f;
       }
    }
 
-   if (std::fmod(t, 1000) < *(mLayer->mTimeStep))
-   {
-      std::cout << mRewartChecker->mWinTimes << " right guesses.\n";
-      mRewartChecker->mWinTimes = 0;
-   }
-
-   //while (mRewardTimes.size() > 0)
-   //{
-   //   if (mRewardTimes[0] <= t)
-   //   {
-   //      mLogger.writeLine(Logger::toString((float)mRewardTimes[0]));
-   //      mD += 0.5;
-   //      //std::cout<<"Happend! DA = " << mD << " weight = " 
-   //      //   << mSynapse->mBase->mWeight << std::endl;
-   //      //std::cout<<"Happened! DA = " << mD << std::endl;
-
-   //      mRewardTimes.erase(mRewardTimes.begin());
-   //   }
-   //   else
-   //      break;
-   //}
+   return 0.0f;
 }
 
-//void DAHandler::checkForReward()
-//{
-//   int t = *(mLayer->mTime);
-//
-//   if (mSynapse->mLastPostSpikeTime != mLastPostRewarded || mSynapse->mLastPreSpikeTime != mLastPreRewarded)
-//   {
-//      mLastPostRewarded = mSynapse->mLastPostSpikeTime;
-//      mLastPreRewarded = mSynapse->mLastPreSpikeTime;
-//
-//      if (mLastPostRewarded > mLastPreRewarded + mSynapse->mBase->mDelay && t - mLastPreRewarded < AcceptableDuration)
-//      {
-//         mRewardTimes.push_back(t + 1000 + rand() % 2000);
-//
-//         for (std::size_t i = mRewardTimes.size() - 1; i > 0; --i)
-//         {
-//            if (mRewardTimes[i] < mRewardTimes[i-1])
-//            {
-//               int temp = mRewardTimes[i];
-//               mRewardTimes[i] = mRewardTimes[i-1];
-//               mRewardTimes[i-1] = temp;
-//            }
-//         }
-//      }
-//   }
-//}
+void IzhikevichDAHandler::setSynapse(const Synapse* syn)
+{
+   mPreID = syn->getPreNeuronID();
+   mPostID = syn->getPostNeuronID();
+   mSynapseDelay = syn->getDelay();
+}
 
 template <class Archive>
 void DAHandler::serialize(Archive &ar, const unsigned int version)
 {
-   ar & mD & mDMultiplier
-      & mLayer & AcceptableDuration
-      & mCheckTimeStep & mRewartChecker;
+   ar & mDMultiplier
+      & mLayer & mCheckTimeStep;
 }
 
 template void DAHandler::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);
 template void DAHandler::serialize<boost::archive::text_iarchive>(boost::archive::text_iarchive &ar, const unsigned int version);
-
-bool RewardChecker::checkForReward(int fromClass)
-{
-   int n1=mDAHandlers[0]->mGSpikeNum, n2=mDAHandlers[1]->mGSpikeNum;
-   int max = 0;
-   int maxnum = mDAHandlers[0]->mGSpikeNum;
-   mDAHandlers[0]->mGSpikeNum = 0;
-   bool sameNum = false;
-   
-   for (size_t i=1; i<mDAHandlers.size(); ++i)
-   {
-      if (mDAHandlers[i]->mGSpikeNum > maxnum)
-      {
-         max = i;
-         maxnum = mDAHandlers[i]->mGSpikeNum;
-         sameNum = false;
-      }
-      else if (mDAHandlers[i]->mGSpikeNum == maxnum)
-         sameNum = true;
-      
-      mDAHandlers[i]->mGSpikeNum = 0;
-   }
-
-   if (mDAHandlers[max]->mRepresentClass == fromClass && !sameNum)
-   {
-      std::cout<<"class "<< fromClass <<" won "<<n1<<"-"<<n2<<"\n";
-      //std::cout<<"DA1="<<mDAHandlers[0]->mD<<" DA2="<<mDAHandlers[1]->mD<<std::endl;
-      ++mWinTimes;
-      return true;
-   }
-   else
-      return false;
-}
-
-template <class Archive>
-void RewardChecker::serialize(Archive &ar, const unsigned int version)
-{
-   ar & mDAHandlers;
-}
-
-template void RewardChecker::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive &ar, const unsigned int version);
-template void RewardChecker::serialize<boost::archive::text_iarchive>(boost::archive::text_iarchive &ar, const unsigned int version);

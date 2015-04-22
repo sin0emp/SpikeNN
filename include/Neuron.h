@@ -25,7 +25,6 @@ struct CurrentInfo;
 class MODULE_EXPORT Neuron
 {
    friend class boost::serialization::access;
-   friend class DAHandler;
 public:
    Neuron(Layer* layer, int ID, ChannelType type = EXCITATORY);
    Neuron() { initialize(); }  //used only by boost::serialization
