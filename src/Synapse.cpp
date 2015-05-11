@@ -152,12 +152,12 @@ void Synapse::setPostSpikeTime()
    }
 }
 
-inline int Synapse::getPreNeuronID() const
+int Synapse::getPreNeuronID() const
 {
    return mPreNeuron->getID();
 }
 
-inline int Synapse::getPostNeuronID() const
+int Synapse::getPostNeuronID() const
 {
    return mPostNeuron->getID();
 }
