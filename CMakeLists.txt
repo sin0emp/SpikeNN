@@ -27,3 +27,12 @@ add_library(SpikeNN SHARED src/Synapse.cpp
                            src/DAHandler.cpp)
 
 target_link_libraries(SpikeNN ${Boost_LIBRARIES})
+
+if (WIN32)
+	install(TARGETS SpikeNN DESTINATION "C:/Program Files/SpikeNN/lib")
+	install(DIRECTORY "include" DESTINATION "C:/Program Files/SpikeNN")
+elseif (UNIX)
+	file(GLOB incFiles include/*.h)
+	install(FILES ${incFiles} DESTINATION "/usr/local/include/SpikeNN")
+	install(TARGETS SpikeNN DESTINATION "/usr/local/lib")
+endif()
